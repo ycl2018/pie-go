@@ -5,44 +5,44 @@ import "github.com/ycl2018/pie-go/interpreter/asm"
 const (
 	FUNC = asm.FUNC
 	INT  = asm.INT
-	POLL = 100
+	POLL = asm.POLL
 )
 
 const (
 	InstrIAdd = iota + 1
-	InstrISub 
-	InstrIMul 
-	InstrILT  
-	InstrIEQ  
-	InstrFAdd 
-	InstrFSub 
-	InstrFMul 
-	InstrFLT  
-	InstrFEQ  
+	InstrISub
+	InstrIMul
+	InstrILT
+	InstrIEQ
+	InstrFAdd
+	InstrFSub
+	InstrFMul
+	InstrFLT
+	InstrFEQ
 
-	InstrI2F     // int to float
-	InstrCall   
-	InstrReturn 
-	InstrBR      // branch
-	InstrBRT     // branch if true
-	InstrBRF     // branch if false
-	InstrCConst  // push constant
-	InstrIConst 
-	InstrFConst 
-	InstrSConst 
+	InstrI2F // int to float
+	InstrCall
+	InstrReturn
+	InstrBR     // branch
+	InstrBRT    // branch if true
+	InstrBRF    // branch if false
+	InstrCConst // push constant
+	InstrIConst
+	InstrFConst
+	InstrSConst
 
-	InstrLoad   
-	InstrGLoad   // global load
-	InstrFLoad   // filed load
-	InstrStore   // local store
-	InstrGStore  // global store
-	InstrFStore  // field store
-	InstrPrint  
-	InstrStruct  // push struct on stack
-	InstrNull    // push null on stack
-	InstrPop     // pop stack
+	InstrLoad
+	InstrGLoad  // global load
+	InstrFLoad  // filed load
+	InstrStore  // local store
+	InstrGStore // global store
+	InstrFStore // field store
+	InstrPrint
+	InstrStruct // push struct on stack
+	InstrNull   // push null on stack
+	InstrPop    // pop stack
 
-	InstrHalt 
+	InstrHalt
 )
 
 // 基于栈的指令集
