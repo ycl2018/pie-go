@@ -3,40 +3,46 @@ package stack
 import "github.com/ycl2018/pie-go/interpreter/asm"
 
 const (
+	FUNC = asm.FUNC
+	INT  = asm.INT
+	POLL = 100
+)
+
+const (
 	InstrIAdd = iota + 1
-	InstrISub = iota + 1
-	InstrIMul = iota + 1
-	InstrILT  = iota + 1
-	InstrIEQ  = iota + 1
-	InstrFAdd = iota + 1
-	InstrFSub = iota + 1
-	InstrFMul = iota + 1
-	InstrFLT  = iota + 1
-	InstrFEQ  = iota + 1
+	InstrISub 
+	InstrIMul 
+	InstrILT  
+	InstrIEQ  
+	InstrFAdd 
+	InstrFSub 
+	InstrFMul 
+	InstrFLT  
+	InstrFEQ  
 
-	InstrI2F    = iota + 1 // int to float
-	InstrCall   = iota + 1
-	InstrReturn = iota + 1
-	InstrBR     = iota + 1 // branch
-	InstrBRT    = iota + 1 // branch if true
-	InstrBRF    = iota + 1 // branch if false
-	InstrCConst = iota + 1 // push constant
-	InstrIConst = iota + 1
-	InstrFConst = iota + 1
-	InstrSConst = iota + 1
+	InstrI2F     // int to float
+	InstrCall   
+	InstrReturn 
+	InstrBR      // branch
+	InstrBRT     // branch if true
+	InstrBRF     // branch if false
+	InstrCConst  // push constant
+	InstrIConst 
+	InstrFConst 
+	InstrSConst 
 
-	InstrLoad   = iota + 1
-	InstrGLoad  = iota + 1 // global load
-	InstrFLoad  = iota + 1 // filed load
-	InstrStore  = iota + 1 // local store
-	InstrGStore = iota + 1 // global store
-	InstrFStore = iota + 1 // field store
-	InstrPrint  = iota + 1
-	InstrStruct = iota + 1 // push struct on stack
-	InstrNull   = iota + 1 // push null on stack
-	InstrPop    = iota + 1 // pop stack
+	InstrLoad   
+	InstrGLoad   // global load
+	InstrFLoad   // filed load
+	InstrStore   // local store
+	InstrGStore  // global store
+	InstrFStore  // field store
+	InstrPrint  
+	InstrStruct  // push struct on stack
+	InstrNull    // push null on stack
+	InstrPop     // pop stack
 
-	InstrHalt = iota + 1
+	InstrHalt 
 )
 
 // 基于栈的指令集
@@ -53,23 +59,23 @@ var Instructions = []*asm.Instruction{
 	{"flt", []int32{}},
 	{"feq", []int32{}},
 	{"itof", []int32{}},
-	{"call", []int32{asm.FUNC}},
+	{"call", []int32{FUNC}},
 	{"ret", []int32{}},
-	{"br", []int32{asm.INT}},
-	{"brt", []int32{asm.INT}},
-	{"brf", []int32{asm.INT}},
-	{"cconst", []int32{asm.INT}},
-	{"iconst", []int32{asm.INT}},
-	{"fconst", []int32{asm.POLL}},
-	{"sconst", []int32{asm.POLL}},
-	{"load", []int32{asm.INT}},
-	{"gload", []int32{asm.INT}},
-	{"fload", []int32{asm.INT}},
-	{"store", []int32{asm.INT}},
-	{"gstore", []int32{asm.INT}},
-	{"fstore", []int32{asm.INT}},
+	{"br", []int32{INT}},
+	{"brt", []int32{INT}},
+	{"brf", []int32{INT}},
+	{"cconst", []int32{INT}},
+	{"iconst", []int32{INT}},
+	{"fconst", []int32{POLL}},
+	{"sconst", []int32{POLL}},
+	{"load", []int32{INT}},
+	{"gload", []int32{INT}},
+	{"fload", []int32{INT}},
+	{"store", []int32{INT}},
+	{"gstore", []int32{INT}},
+	{"fstore", []int32{INT}},
 	{"print", []int32{}},
-	{"struct", []int32{asm.INT}},
+	{"struct", []int32{INT}},
 	{"null", []int32{}},
 	{"pop", []int32{}},
 	{"halt", []int32{}},

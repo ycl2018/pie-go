@@ -54,7 +54,7 @@ type Interpreter struct {
 	dump        bool
 }
 
-const DefaultOpRandStackSize = 100
+const DefaultOperandStackSize = 100
 
 type StackFrame struct {
 	ReturnAddr int32 // 返回值
@@ -94,7 +94,7 @@ func NewInterpreter(input antlr.CharStream, ops ...Option) *Interpreter {
 		MainFunc:      mainFunc,
 		Calls:         nil,
 		FP:            -1,
-		Operands:      make([]any, DefaultOpRandStackSize),
+		Operands:      make([]any, DefaultOperandStackSize),
 		SP:            -1,
 		Globals:       make([]any, assembler.DataSize),
 		DataSize:      assembler.DataSize,
