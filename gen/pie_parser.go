@@ -1,4 +1,4 @@
-// Code generated from /Users/bytedance/go/src/github.com/ycl2018/pie-go/parser/Pie.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from github.com/ycl2018/pie-go/gen/Pie.g4 by ANTLR 4.13.1. DO NOT EDIT.
 
 package gen // Pie
 import (
