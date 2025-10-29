@@ -1,4 +1,4 @@
-package tree
+package compile
 
 import (
 	"github.com/antlr4-go/antlr/v4"
