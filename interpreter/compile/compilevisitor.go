@@ -1,9 +1,12 @@
 package compile
 
 import (
+	"fmt"
+
 	"github.com/antlr4-go/antlr/v4"
 	gen2 "github.com/ycl2018/pie-go/gen"
 	"github.com/ycl2018/pie-go/interpreter/compile/ir"
+	"github.com/ycl2018/pie-go/interpreter/stack2"
 )
 
 type StackCompileVisitor struct {
@@ -11,44 +14,109 @@ type StackCompileVisitor struct {
 	InterpreterListener InterpreterListener
 	Scopes              map[antlr.ParserRuleContext]Scope // 作用域树&符号表存储
 	GlobalScope         *GlobalScope
-	AllFuncCodes        map[string][]ir.StackInstr
-	MainFuncCodes       []ir.StackInstr
-	CurFuncCodes        []ir.StackInstr
-}
-
-func (s *StackCompileVisitor) VisitStructDefinition(ctx *gen2.StructDefinitionContext) interface{} {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s *StackCompileVisitor) VisitSlist(ctx *gen2.SlistContext) interface{} {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s *StackCompileVisitor) VisitStructDefinitionStatement(ctx *gen2.StructDefinitionStatementContext) interface{} {
-	//TODO implement me
-	panic("implement me")
+	AllFuncCodes        map[string][]*ir.StackInstr
+	MainFuncCodes       []*ir.StackInstr
+	CurFuncCodes        []*ir.StackInstr
+	ToBeFilledBrfAddrs  map[*ir.StackInstr][]*ir.StackInstr // 目标分支跳转指令 -> 需要回填的分支跳转指令列表
+	Code []byte
 }
 
 func (s *StackCompileVisitor) VisitAssignementStatement(ctx *gen2.AssignementStatementContext) interface{} {
-	//TODO implement me
-	panic("implement me")
+	ctx.Expr().Accept(s)
+	scope := s.Scopes[ctx]
+	qidCtx := ctx.Qid()
+	var vName = qidCtx.ID(0).GetText()
+	varSymbol := scope.Resolve(vName).(*VariableSymbol)
+	// 普通变量赋值
+	varAddr := varSymbol.Address
+	// 生成赋值语句IR
+	if len(qidCtx.AllID()) == 1 {
+		s.CurFuncCodes = append(s.CurFuncCodes, &ir.StackInstr{
+			OpCode:   stack2.InstrStore,
+			Operands: []int32{varAddr},
+		})
+		return nil
+	} else {
+		// 结构体成员赋值
+		// 生成加载结构体变量地址IR
+		ss := scope.Resolve(qidCtx.ID(0).GetText())
+		opCode := ss.GetAddress()
+		s.CurFuncCodes = append(s.CurFuncCodes, &ir.StackInstr{
+			OpCode:   stack2.InstrLoad,
+			Operands: []int32{opCode},
+		})
+		for i := 1; i < len(qidCtx.AllID())-1; i++ {
+			// 生成加载结构体成员地址IR
+			memberName := qidCtx.ID(i).GetText()
+			constSymbol := &ConstSymbol{
+				Name: fmt.Sprintf("%s_%s", ir.ConstString, memberName),
+				Line: int32(qidCtx.GetStart().GetLine()),
+				Kind: ir.ConstString,
+			}
+			cSymbol, _ := s.GlobalScope.DefineOrGetConst(constSymbol)
+			opCode := cSymbol.GetAddress()
+			s.CurFuncCodes = append(s.CurFuncCodes, &ir.StackInstr{
+				OpCode:   stack2.InstrFLoad,
+				Operands: []int32{opCode}, // 成员名称常量地址
+			})
+		}
+		// 生成赋值语句IR
+		memberName := qidCtx.AllID()[len(qidCtx.AllID())-1].GetText()
+		constSymbol := &ConstSymbol{
+			Name: fmt.Sprintf("%s_%s", ir.ConstString, memberName),
+			Line: int32(qidCtx.GetStart().GetLine()),
+			Kind: ir.ConstString,
+		}
+		cSymbol, _ := s.GlobalScope.DefineOrGetConst(constSymbol)
+		opCode = cSymbol.GetAddress()
+		s.CurFuncCodes = append(s.CurFuncCodes, &ir.StackInstr{
+			OpCode:   stack2.InstrFStore,
+			Operands: []int32{opCode}, // 成员名称常量地址
+		})
+	}
+	return nil
 }
 
 func (s *StackCompileVisitor) VisitReturnStatement(ctx *gen2.ReturnStatementContext) interface{} {
-	//TODO implement me
-	panic("implement me")
+	ctx.Expr().Accept(s)
+	s.CurFuncCodes = append(s.CurFuncCodes, &ir.StackInstr{
+		OpCode:   stack2.InstrReturn,
+		Operands: []int32{},
+	})
+	return nil
 }
 
 func (s *StackCompileVisitor) VisitPrintStatement(ctx *gen2.PrintStatementContext) interface{} {
-	//TODO implement me
-	panic("implement me")
+	ctx.Expr().Accept(s)
+	s.CurFuncCodes = append(s.CurFuncCodes, &ir.StackInstr{
+		OpCode:   stack2.InstrPrint,
+		Operands: []int32{},
+	})
+	return nil
 }
 
 func (s *StackCompileVisitor) VisitIfStatement(ctx *gen2.IfStatementContext) interface{} {
-	//TODO implement me
-	panic("implement me")
+	ctx.Expr().Accept(s)
+	// 生成分支跳转IR
+	brfInstr := &ir.StackInstr{
+		OpCode:   stack2.InstrBRF,
+		Operands: []int32{-1}, // 占位，等编译为二进制时再回填
+	}
+	s.CurFuncCodes = append(s.CurFuncCodes, brfInstr)
+	// 生成分支语句IR
+	ctx.GetC().Accept(s)
+	brInstr := &ir.StackInstr{
+		OpCode:   stack2.InstrBR,
+		Operands: []int32{-1}, // 占位，等编译为二进制时再回填
+	}
+	s.CurFuncCodes = append(s.CurFuncCodes, brInstr)
+	// 回填分支跳转地址
+	brfInstr.Operands[0] = int32(len(s.Code))
+	if el := ctx.GetEl(); el != nil {
+		el.Accept(s)
+	}
+	brInstr.Operands[0] = int32(len(s.Code))
+	return nil
 }
 
 func (s *StackCompileVisitor) VisitWhileStatement(ctx *gen2.WhileStatementContext) interface{} {
@@ -105,11 +173,6 @@ func (s *StackCompileVisitor) VisitStringAtom(ctx *gen2.StringAtomContext) inter
 	panic("implement me")
 }
 
-func (s *StackCompileVisitor) VisitQidAtom(ctx *gen2.QidAtomContext) interface{} {
-	//TODO implement me
-	panic("implement me")
-}
-
 func (s *StackCompileVisitor) VisitCallAtom(ctx *gen2.CallAtomContext) interface{} {
 	//TODO implement me
 	panic("implement me")
@@ -161,7 +224,17 @@ func (s *StackCompileVisitor) VisitFunctionDefinition(ctx *gen2.FunctionDefiniti
 	scope := s.Scopes[ctx]
 	funcSymbol := scope.Resolve(funcName)
 	// 生成函数定义 IR
-
+	s.CurFuncCodes = funcSymbol.(*FunctionSymbol).Code
+	// 生成参数列表IR
+	paramLen := len(ctx.AllVardef())
+	for i := paramLen - 1; i >= 0; i-- {
+		s.CurFuncCodes = append(s.CurFuncCodes, &ir.StackInstr{
+			OpCode:   stack2.InstrLoad,
+			Operands: []int32{int32(i)},
+		})
+	}
+	// 生成函数体IR
+	ctx.Slist().Accept(s)
 	return nil
 }
 

@@ -1,4 +1,4 @@
-package stack
+package stack2
 
 import (
 	"testing"

@@ -116,12 +116,13 @@ func (p *PieDefineVisitor) VisitAssignementStatement(ctx *gen2.AssignementStatem
 	// qid '=' expr NL
 	p.SaveScope(ctx, p.CurScope)
 	qidCtx := ctx.Qid()
+	vName := qidCtx.ID(0).GetText()
 	vs := &VariableSymbol{
 		// We can have : u.name.y => only take the left part "u"
 		// u = new User
 		// u.name = "parrt"    # make u.name a string
 		// u.name.y = "parrt"  # u.name is a string not a struct
-		Name: qidCtx.ID(0).GetText(),
+		Name: vName,
 	}
 	p.CurScope.Define(vs)
 	p.Visit(ctx.Expr())

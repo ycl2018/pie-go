@@ -1,4 +1,4 @@
-package stack
+package stack2
 
 import (
 	"fmt"
@@ -148,7 +148,7 @@ func (i *Interpreter) cpu() {
 		}
 		i.IP++ // next instruction or first operand
 		switch instr {
-		case InstrAdd,InstrSub, InstrMul,InstrDiv:
+		case InstrAdd, InstrSub, InstrMul, InstrDiv:
 			// 弹出两个操作数，相加，push
 			op2, op1 := i.PopOpStack(), i.PopOpStack()
 			switch op1.(type) {
@@ -203,7 +203,7 @@ func (i *Interpreter) cpu() {
 				i.trace()
 				panic(fmt.Sprintf("add type not support:%v", reflect.TypeOf(op1)))
 			}
-		case InstrLT,InstrEQ:
+		case InstrLT, InstrEQ:
 			op2, op1 := i.PopOpStack(), i.PopOpStack()
 			switch op1.(type) {
 			case int32:

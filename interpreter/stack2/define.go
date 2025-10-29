@@ -1,4 +1,4 @@
-package stack
+package stack2
 
 import "github.com/ycl2018/pie-go/interpreter/asm"
 

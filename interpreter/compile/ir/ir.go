@@ -2,9 +2,8 @@ package ir
 
 import "fmt"
 
-type Instr int
 type StackInstr struct {
-	OpCode   Instr
+	OpCode   int
 	Operands []int32
 }
 

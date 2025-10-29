@@ -46,6 +46,16 @@ func (g *GlobalScope) Define(symbol Symbol) {
 	}
 }
 
+func (g *GlobalScope) DefineOrGetConst(symbol *ConstSymbol) (Symbol,bool) {
+	name := symbol.Name
+	if g.Consts[name] != nil {
+		return g.Consts[name], false
+	}
+	g.Define(symbol)
+	return symbol, true
+}
+
+	
 func (g *GlobalScope) Resolve(name string) Symbol {
 	if v, ok := g.Symbols[name]; ok {
 		return v
@@ -108,7 +118,7 @@ type FunctionSymbol struct {
 	EnclosingScope Scope
 	BodyScope      *LocalScope
 	Line           int32
-	Code           []ir.StackInstr
+	Code           []*ir.StackInstr
 }
 
 func (f *FunctionSymbol) GetAddress() int32 {
