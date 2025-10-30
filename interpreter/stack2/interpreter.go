@@ -148,92 +148,84 @@ func (i *Interpreter) cpu() {
 		}
 		i.IP++ // next instruction or first operand
 		switch instr {
-		case InstrAdd, InstrSub, InstrMul, InstrDiv:
+		case InstrAdd:
+			// support auto type convert
+			// int32 + float32 = int32
+			// int32 + string = string
+			// float32 + string = string
+			op2, op1 := i.PopOpStack(), i.PopOpStack()
+			op1Type, op2Type := reflect.TypeOf(op1), reflect.TypeOf(op2)
+			if op1Type.Kind() == reflect.String || op2Type.Kind() == reflect.String {
+				i.PushOpStack(toString(op1) + toString(op2))
+			} else if op1Type.Kind() == reflect.Int32 && op2Type.Kind() == reflect.Int32 {
+				i.PushOpStack(toInt32(op2) + toInt32(op1))
+			} else  {
+				i.PushOpStack(toFloat32(op2) + toFloat32(op1))
+			}
+		case InstrSub, InstrMul, InstrDiv, InstrLT, InstrEQ, InstrLEQ,InstrNEQ,InstrGEQ, InstrGT:
 			// 弹出两个操作数，相加，push
 			op2, op1 := i.PopOpStack(), i.PopOpStack()
-			switch op1.(type) {
-			case int32:
-				i2, err := toInt32(op2)
-				if err != nil {
-					i.trace()
-					panic(fmt.Sprintf("not support add int32 with type:%s\n", reflect.TypeOf(op2)))
-				}
-				switch instr {
-				case InstrAdd:
-					i.PushOpStack(op1.(int32) + i2)
-				case InstrSub:
-					i.PushOpStack(op1.(int32) - i2)
-				case InstrMul:
-					i.PushOpStack(op1.(int32) * i2)
-				case InstrDiv:
-					i.PushOpStack(op1.(int32) / i2)
-				}
-			case float32:
-				f2, err := toFloat32(op2)
-				if err != nil {
-					i.trace()
-					panic(fmt.Sprintf("not support add float32 with type:%s\n", reflect.TypeOf(op2)))
-				}
-				switch instr {
-				case InstrAdd:
-					i.PushOpStack(op1.(float32) + f2)
-				case InstrSub:
-					i.PushOpStack(op1.(float32) - f2)
-				case InstrMul:
-					i.PushOpStack(op1.(float32) * f2)
-				case InstrDiv:
-					i.PushOpStack(op1.(float32) / f2)
-				}
-			case string:
-				s2, err := toString(op2)
-				if err != nil {
-					i.trace()
-					panic(fmt.Sprintf("not support add string with type:%s\n", reflect.TypeOf(op2)))
-				}
-				switch instr {
-				case InstrAdd:
-					i.PushOpStack(op1.(string) + s2)
-				case InstrSub:
-					i.PushOpStack(op1.(string)[:len(op1.(string))-len(s2)] + s2)
-				default:
-					i.trace()
-					panic(fmt.Sprintf("add type not support:%v", reflect.TypeOf(op1)))
-				}
-			default:
-				i.trace()
-				panic(fmt.Sprintf("add type not support:%v", reflect.TypeOf(op1)))
+			t2, t1 := reflect.TypeOf(op2), reflect.TypeOf(op1)
+			if t2.Kind() != t1.Kind() {
+				panic(fmt.Sprintf("type not match:%v %v", t1, t2))
 			}
-		case InstrLT, InstrEQ:
-			op2, op1 := i.PopOpStack(), i.PopOpStack()
-			switch op1.(type) {
-			case int32:
-				i2, err := toInt32(op2)
-				if err != nil {
-					i.trace()
-					panic(fmt.Sprintf("not support add int32 with type:%s\n", reflect.TypeOf(op2)))
+			switch instr {
+			case InstrSub:
+				if t1.Kind() == reflect.Int32 {
+					i.PushOpStack(toInt32(op1) - toInt32(op2))
+				} else {
+					i.PushOpStack(toFloat32(op1) - toFloat32(op2))
 				}
-				switch instr {
-				case InstrLT:
-					i.PushOpStack(op1.(int32) < i2)
-				case InstrEQ:
-					i.PushOpStack(op1.(int32) == i2)
+			case InstrMul:
+				if t1.Kind() == reflect.Int32 {
+					i.PushOpStack(toInt32(op1) * toInt32(op2))
+				} else {
+					i.PushOpStack(toFloat32(op1) * toFloat32(op2))
 				}
-			case float32:
-				f2, err := toFloat32(op2)
-				if err != nil {
-					i.trace()
-					panic(fmt.Sprintf("not support add float32 with type:%s\n", reflect.TypeOf(op2)))
+			case InstrDiv:
+				if t1.Kind() == reflect.Int32 {
+					i.PushOpStack(toInt32(op1) / toInt32(op2))
+				} else {
+					i.PushOpStack(toFloat32(op1) / toFloat32(op2))
 				}
-				switch instr {
-				case InstrLT:
-					i.PushOpStack(op1.(float32) < f2)
-				case InstrEQ:
-					i.PushOpStack(op1.(float32) == f2)
+			case InstrLT:
+				if t1.Kind() == reflect.Int32 {
+					i.PushOpStack(toInt32(op1) < toInt32(op2))
+				} else {
+					i.PushOpStack(toFloat32(op1) < toFloat32(op2))
 				}
-			default:
-				i.trace()
-				panic(fmt.Sprintf("add type not support:%v", reflect.TypeOf(op1)))
+			case InstrEQ:
+				if t1.Kind() == reflect.Int32 {
+					i.PushOpStack(toInt32(op1) == toInt32(op2))
+				} else {
+					i.PushOpStack(toFloat32(op1) == toFloat32(op2))
+				}
+			case InstrLEQ:
+				if t1.Kind() == reflect.Int32 {
+					i.PushOpStack(toInt32(op1) <= toInt32(op2))
+				} else {
+					i.PushOpStack(toFloat32(op1) <= toFloat32(op2))
+				}
+			case InstrNEQ:
+				if t1.Kind() == reflect.Int32 {
+					i.PushOpStack(toInt32(op1) != toInt32(op2))
+				} else {
+					i.PushOpStack(toFloat32(op1) != toFloat32(op2))
+				}
+			case InstrGEQ:
+				if t1.Kind() == reflect.Int32 {
+					i.PushOpStack(toInt32(op1) >= toInt32(op2))
+				} else {
+					i.PushOpStack(toFloat32(op1) >= toFloat32(op2))
+				}
+			case InstrGT:
+				if t1.Kind() == reflect.Int32 {
+					i.PushOpStack(toInt32(op1) > toInt32(op2))
+				} else {
+					i.PushOpStack(toFloat32(op1) > toFloat32(op2))
+				}
 			}
+
 		case InstrCall:
 			// 函数调用
 			funcIndex := i.NextOperand()
@@ -313,32 +305,38 @@ func (i *Interpreter) cpu() {
 	}
 }
 
-func toInt32(x any) (int32, error) {
+func toInt32(x any) (int32) {
 	switch x.(type) {
 	case int32:
-		return x.(int32), nil
+		return x.(int32)
 	case float32:
-		return int32(x.(float32)), nil
+		return int32(x.(float32))
 	default:
-		return 0, fmt.Errorf("toInt32 type not support:%v", reflect.TypeOf(x))
+		return 0
 	}
 }
 
-func toString(x any) (string, error) {
+func toString(x any) string {
 	switch x.(type) {
 	case string:
-		return x.(string), nil
+		return x.(string)
+	case int32:
+		return fmt.Sprintf("%d", x.(int32))
+	case float32:
+		return fmt.Sprintf("%f", x.(float32))
 	default:
-		return "", fmt.Errorf("toString type not support:%v", reflect.TypeOf(x))
+		return ""
 	}
 }
 
-func toFloat32(x any) (float32, error) {
+func toFloat32(x any) (float32) {
 	switch x.(type) {
 	case float32:
-		return x.(float32), nil
+		return x.(float32)
+	case int32:
+		return float32(x.(int32))
 	default:
-		return 0, fmt.Errorf("toFloat32 type not support:%v", reflect.TypeOf(x))
+		return 0
 	}
 }
 

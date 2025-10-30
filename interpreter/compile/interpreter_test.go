@@ -129,8 +129,9 @@ print u.addr
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewPieInterpreter()
+			p := NewPieCompiler()
 			p.Execute(antlr.NewInputStream(tt.program))
+			t.Log(p.Dump())
 		})
 	}
 }

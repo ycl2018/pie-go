@@ -1,18 +1,20 @@
 package compile
 
 import (
+	"strings"
+
 	"github.com/antlr4-go/antlr/v4"
 	gen2 "github.com/ycl2018/pie-go/gen"
-	"github.com/ycl2018/pie-go/interpreter/tree"
 )
 
 type PieCompiler struct {
-	InterpreterListener tree.InterpreterListener
+	InterpreterListener InterpreterListener
+	compileVisitor      *StackCompileVisitor
 }
 
 func NewPieCompiler() *PieCompiler {
 	return &PieCompiler{
-		InterpreterListener: tree.DefaultInterpreterListener{},
+		InterpreterListener: DefaultInterpreterListener{},
 	}
 }
 
@@ -23,10 +25,19 @@ func (p *PieCompiler) Execute(input antlr.CharStream) {
 	programContext := ps.Program()
 	if ps.GetError() == nil {
 		// 符号&作用域解析
-		defVisitor := tree.NewPieDefineVisitor()
+		defVisitor := NewPieDefineVisitor()
 		defVisitor.Visit(programContext)
 		// 执行
-		runVisitor := tree.NewRuntimeVisitor(p.InterpreterListener, defVisitor.Scopes)
-		runVisitor.Visit(programContext)
+		p.compileVisitor = NewStackCompileVisitor(defVisitor.Scopes)
+		p.compileVisitor.Visit(programContext)
 	}
+}
+
+func (p *PieCompiler) Dump() string {
+	var sb strings.Builder
+	for _, f := range p.compileVisitor.AllFuncs {
+		sb.WriteString(f.Dump())
+	}
+	sb.WriteString(p.compileVisitor.MainFunc.Dump())
+	return sb.String()
 }

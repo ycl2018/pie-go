@@ -1,17 +1,26 @@
 package ir
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/ycl2018/pie-go/interpreter/stack2"
+)
+
 
 type StackInstr struct {
 	OpCode   int
 	Operands []int32
 }
 
+func (s StackInstr) Dump() string {
+	return fmt.Sprintf("%s %v\n", stack2.Instr(s.OpCode), s.Operands)
+}
+
 // ConstKind 常量类型，存储于全局常量池
 type ConstKind int
 
 const (
-	ConstFloat32 = iota
+	ConstFloat32 ConstKind = iota
 	ConstString
 	ConstStruct
 )

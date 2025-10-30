@@ -1,4 +1,4 @@
-// Code generated from github.com/ycl2018/pie-go/gen/Pie.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from /Users/bytedance/go/src/github.com/ycl2018/pie-go/gen/Pie.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Pie
 import (
@@ -35,12 +35,13 @@ func pieParserInit() {
   staticData.LiteralNames = []string{
     "", "'{'", "','", "'}'", "'('", "')'", "':'", "'else'", "'if'", "'='", 
     "'print'", "'while'", "'return'", "'def'", "'+'", "'-'", "'*'", "'/'", 
-    "'=='", "'<'", "'struct'", "'.'", "'new'",
+    "'=='", "'<'", "'>'", "'>='", "'<='", "'!='", "'struct'", "'.'", "'new'",
   }
   staticData.SymbolicNames = []string{
     "", "", "", "", "", "", "", "", "IF", "ASSIGN", "PRINT", "WHILE", "RETURN", 
-    "DEF", "ADD", "SUB", "MUL", "DIV", "EQ", "LT", "STRUCT", "DOT", "NEW", 
-    "NL", "ID", "CHAR", "STRING", "INT", "FLOAT", "WS", "SL_COMMENT",
+    "DEF", "ADD", "SUB", "MUL", "DIV", "EQ", "LT", "GT", "GEQ", "LEQ", "NEQ", 
+    "STRUCT", "DOT", "NEW", "NL", "ID", "CHAR", "STRING", "INT", "FLOAT", 
+    "WS", "SL_COMMENT",
   }
   staticData.RuleNames = []string{
     "program", "structDefinition", "functionDefinition", "slist", "statement", 
@@ -49,7 +50,7 @@ func pieParserInit() {
   }
   staticData.PredictionContextCache = antlr.NewPredictionContextCache()
   staticData.serializedATN = []int32{
-	4, 1, 30, 185, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7, 
+	4, 1, 34, 185, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7, 
 	4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7, 
 	10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 2, 14, 7, 14, 2, 15, 7, 15, 
 	1, 0, 1, 0, 4, 0, 35, 8, 0, 11, 0, 12, 0, 36, 1, 0, 1, 0, 1, 1, 1, 1, 1, 
@@ -68,39 +69,39 @@ func pieParserInit() {
 	11, 1, 11, 5, 11, 172, 8, 11, 10, 11, 12, 11, 175, 9, 11, 1, 12, 1, 12, 
 	1, 13, 1, 13, 1, 14, 1, 14, 1, 15, 1, 15, 1, 15, 0, 0, 16, 0, 2, 4, 6, 
 	8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 0, 3, 1, 0, 16, 17, 1, 0, 
-	14, 15, 1, 0, 18, 19, 196, 0, 34, 1, 0, 0, 0, 2, 40, 1, 0, 0, 0, 4, 54, 
+	14, 15, 1, 0, 18, 23, 196, 0, 34, 1, 0, 0, 0, 2, 40, 1, 0, 0, 0, 4, 54, 
 	1, 0, 0, 0, 6, 81, 1, 0, 0, 0, 8, 112, 1, 0, 0, 0, 10, 114, 1, 0, 0, 0, 
 	12, 128, 1, 0, 0, 0, 14, 134, 1, 0, 0, 0, 16, 143, 1, 0, 0, 0, 18, 163, 
 	1, 0, 0, 0, 20, 165, 1, 0, 0, 0, 22, 168, 1, 0, 0, 0, 24, 176, 1, 0, 0, 
 	0, 26, 178, 1, 0, 0, 0, 28, 180, 1, 0, 0, 0, 30, 182, 1, 0, 0, 0, 32, 35, 
 	3, 4, 2, 0, 33, 35, 3, 8, 4, 0, 34, 32, 1, 0, 0, 0, 34, 33, 1, 0, 0, 0, 
 	35, 36, 1, 0, 0, 0, 36, 34, 1, 0, 0, 0, 36, 37, 1, 0, 0, 0, 37, 38, 1, 
-	0, 0, 0, 38, 39, 5, 0, 0, 1, 39, 1, 1, 0, 0, 0, 40, 41, 5, 20, 0, 0, 41, 
-	42, 5, 24, 0, 0, 42, 43, 5, 1, 0, 0, 43, 48, 3, 24, 12, 0, 44, 45, 5, 2, 
+	0, 0, 0, 38, 39, 5, 0, 0, 1, 39, 1, 1, 0, 0, 0, 40, 41, 5, 24, 0, 0, 41, 
+	42, 5, 28, 0, 0, 42, 43, 5, 1, 0, 0, 43, 48, 3, 24, 12, 0, 44, 45, 5, 2, 
 	0, 0, 45, 47, 3, 24, 12, 0, 46, 44, 1, 0, 0, 0, 47, 50, 1, 0, 0, 0, 48, 
 	46, 1, 0, 0, 0, 48, 49, 1, 0, 0, 0, 49, 51, 1, 0, 0, 0, 50, 48, 1, 0, 0, 
-	0, 51, 52, 5, 3, 0, 0, 52, 53, 5, 23, 0, 0, 53, 3, 1, 0, 0, 0, 54, 55, 
-	5, 13, 0, 0, 55, 56, 5, 24, 0, 0, 56, 65, 5, 4, 0, 0, 57, 62, 3, 24, 12, 
+	0, 51, 52, 5, 3, 0, 0, 52, 53, 5, 27, 0, 0, 53, 3, 1, 0, 0, 0, 54, 55, 
+	5, 13, 0, 0, 55, 56, 5, 28, 0, 0, 56, 65, 5, 4, 0, 0, 57, 62, 3, 24, 12, 
 	0, 58, 59, 5, 2, 0, 0, 59, 61, 3, 24, 12, 0, 60, 58, 1, 0, 0, 0, 61, 64, 
 	1, 0, 0, 0, 62, 60, 1, 0, 0, 0, 62, 63, 1, 0, 0, 0, 63, 66, 1, 0, 0, 0, 
 	64, 62, 1, 0, 0, 0, 65, 57, 1, 0, 0, 0, 65, 66, 1, 0, 0, 0, 66, 67, 1, 
 	0, 0, 0, 67, 68, 5, 5, 0, 0, 68, 69, 3, 6, 3, 0, 69, 5, 1, 0, 0, 0, 70, 
-	71, 5, 6, 0, 0, 71, 73, 5, 23, 0, 0, 72, 74, 3, 8, 4, 0, 73, 72, 1, 0, 
+	71, 5, 6, 0, 0, 71, 73, 5, 27, 0, 0, 72, 74, 3, 8, 4, 0, 73, 72, 1, 0, 
 	0, 0, 74, 75, 1, 0, 0, 0, 75, 73, 1, 0, 0, 0, 75, 76, 1, 0, 0, 0, 76, 77, 
-	1, 0, 0, 0, 77, 78, 5, 21, 0, 0, 78, 79, 5, 23, 0, 0, 79, 82, 1, 0, 0, 
+	1, 0, 0, 0, 77, 78, 5, 25, 0, 0, 78, 79, 5, 27, 0, 0, 79, 82, 1, 0, 0, 
 	0, 80, 82, 3, 8, 4, 0, 81, 70, 1, 0, 0, 0, 81, 80, 1, 0, 0, 0, 82, 7, 1, 
 	0, 0, 0, 83, 113, 3, 2, 1, 0, 84, 85, 3, 22, 11, 0, 85, 86, 5, 9, 0, 0, 
-	86, 87, 3, 12, 6, 0, 87, 88, 5, 23, 0, 0, 88, 113, 1, 0, 0, 0, 89, 90, 
-	5, 12, 0, 0, 90, 91, 3, 12, 6, 0, 91, 92, 5, 23, 0, 0, 92, 113, 1, 0, 0, 
-	0, 93, 94, 5, 10, 0, 0, 94, 95, 3, 12, 6, 0, 95, 96, 5, 23, 0, 0, 96, 113, 
+	86, 87, 3, 12, 6, 0, 87, 88, 5, 27, 0, 0, 88, 113, 1, 0, 0, 0, 89, 90, 
+	5, 12, 0, 0, 90, 91, 3, 12, 6, 0, 91, 92, 5, 27, 0, 0, 92, 113, 1, 0, 0, 
+	0, 93, 94, 5, 10, 0, 0, 94, 95, 3, 12, 6, 0, 95, 96, 5, 27, 0, 0, 96, 113, 
 	1, 0, 0, 0, 97, 98, 5, 8, 0, 0, 98, 99, 3, 12, 6, 0, 99, 102, 3, 6, 3, 
 	0, 100, 101, 5, 7, 0, 0, 101, 103, 3, 6, 3, 0, 102, 100, 1, 0, 0, 0, 102, 
 	103, 1, 0, 0, 0, 103, 113, 1, 0, 0, 0, 104, 105, 5, 11, 0, 0, 105, 106, 
 	3, 12, 6, 0, 106, 107, 3, 6, 3, 0, 107, 113, 1, 0, 0, 0, 108, 109, 3, 10, 
-	5, 0, 109, 110, 5, 23, 0, 0, 110, 113, 1, 0, 0, 0, 111, 113, 5, 23, 0, 
+	5, 0, 109, 110, 5, 27, 0, 0, 110, 113, 1, 0, 0, 0, 111, 113, 5, 27, 0, 
 	0, 112, 83, 1, 0, 0, 0, 112, 84, 1, 0, 0, 0, 112, 89, 1, 0, 0, 0, 112, 
 	93, 1, 0, 0, 0, 112, 97, 1, 0, 0, 0, 112, 104, 1, 0, 0, 0, 112, 108, 1, 
-	0, 0, 0, 112, 111, 1, 0, 0, 0, 113, 9, 1, 0, 0, 0, 114, 115, 5, 24, 0, 
+	0, 0, 0, 112, 111, 1, 0, 0, 0, 113, 9, 1, 0, 0, 0, 114, 115, 5, 28, 0, 
 	0, 115, 124, 5, 4, 0, 0, 116, 121, 3, 12, 6, 0, 117, 118, 5, 2, 0, 0, 118, 
 	120, 3, 12, 6, 0, 119, 117, 1, 0, 0, 0, 120, 123, 1, 0, 0, 0, 121, 119, 
 	1, 0, 0, 0, 121, 122, 1, 0, 0, 0, 122, 125, 1, 0, 0, 0, 123, 121, 1, 0, 
@@ -114,16 +115,16 @@ func pieParserInit() {
 	18, 9, 0, 144, 145, 3, 26, 13, 0, 145, 146, 3, 18, 9, 0, 146, 148, 1, 0, 
 	0, 0, 147, 144, 1, 0, 0, 0, 148, 151, 1, 0, 0, 0, 149, 147, 1, 0, 0, 0, 
 	149, 150, 1, 0, 0, 0, 150, 17, 1, 0, 0, 0, 151, 149, 1, 0, 0, 0, 152, 164, 
-	5, 27, 0, 0, 153, 164, 5, 25, 0, 0, 154, 164, 5, 28, 0, 0, 155, 164, 5, 
-	26, 0, 0, 156, 164, 3, 22, 11, 0, 157, 164, 3, 10, 5, 0, 158, 164, 3, 20, 
+	5, 31, 0, 0, 153, 164, 5, 29, 0, 0, 154, 164, 5, 32, 0, 0, 155, 164, 5, 
+	30, 0, 0, 156, 164, 3, 22, 11, 0, 157, 164, 3, 10, 5, 0, 158, 164, 3, 20, 
 	10, 0, 159, 160, 5, 4, 0, 0, 160, 161, 3, 12, 6, 0, 161, 162, 5, 5, 0, 
 	0, 162, 164, 1, 0, 0, 0, 163, 152, 1, 0, 0, 0, 163, 153, 1, 0, 0, 0, 163, 
 	154, 1, 0, 0, 0, 163, 155, 1, 0, 0, 0, 163, 156, 1, 0, 0, 0, 163, 157, 
 	1, 0, 0, 0, 163, 158, 1, 0, 0, 0, 163, 159, 1, 0, 0, 0, 164, 19, 1, 0, 
-	0, 0, 165, 166, 5, 22, 0, 0, 166, 167, 5, 24, 0, 0, 167, 21, 1, 0, 0, 0, 
-	168, 173, 5, 24, 0, 0, 169, 170, 5, 21, 0, 0, 170, 172, 5, 24, 0, 0, 171, 
+	0, 0, 165, 166, 5, 26, 0, 0, 166, 167, 5, 28, 0, 0, 167, 21, 1, 0, 0, 0, 
+	168, 173, 5, 28, 0, 0, 169, 170, 5, 25, 0, 0, 170, 172, 5, 28, 0, 0, 171, 
 	169, 1, 0, 0, 0, 172, 175, 1, 0, 0, 0, 173, 171, 1, 0, 0, 0, 173, 174, 
-	1, 0, 0, 0, 174, 23, 1, 0, 0, 0, 175, 173, 1, 0, 0, 0, 176, 177, 5, 24, 
+	1, 0, 0, 0, 174, 23, 1, 0, 0, 0, 175, 173, 1, 0, 0, 0, 176, 177, 5, 28, 
 	0, 0, 177, 25, 1, 0, 0, 0, 178, 179, 7, 0, 0, 0, 179, 27, 1, 0, 0, 0, 180, 
 	181, 7, 1, 0, 0, 181, 29, 1, 0, 0, 0, 182, 183, 7, 2, 0, 0, 183, 31, 1, 
 	0, 0, 0, 16, 34, 36, 48, 62, 65, 75, 81, 102, 112, 121, 124, 132, 140, 
@@ -186,17 +187,21 @@ const (
 	PieParserDIV = 17
 	PieParserEQ = 18
 	PieParserLT = 19
-	PieParserSTRUCT = 20
-	PieParserDOT = 21
-	PieParserNEW = 22
-	PieParserNL = 23
-	PieParserID = 24
-	PieParserCHAR = 25
-	PieParserSTRING = 26
-	PieParserINT = 27
-	PieParserFLOAT = 28
-	PieParserWS = 29
-	PieParserSL_COMMENT = 30
+	PieParserGT = 20
+	PieParserGEQ = 21
+	PieParserLEQ = 22
+	PieParserNEQ = 23
+	PieParserSTRUCT = 24
+	PieParserDOT = 25
+	PieParserNEW = 26
+	PieParserNL = 27
+	PieParserID = 28
+	PieParserCHAR = 29
+	PieParserSTRING = 30
+	PieParserINT = 31
+	PieParserFLOAT = 32
+	PieParserWS = 33
+	PieParserSL_COMMENT = 34
 )
 
 // PieParser rules.
@@ -391,7 +396,7 @@ func (p *PieParser) Program() (localctx IProgramContext) {
 	_la = p.GetTokenStream().LA(1)
 
 
-	for ok := true; ok; ok = ((int64(_la) & ^0x3f) == 0 && ((int64(1) << _la) & 26230016) != 0) {
+	for ok := true; ok; ok = ((int64(_la) & ^0x3f) == 0 && ((int64(1) << _la) & 419446016) != 0) {
 		p.SetState(34)
 		p.GetErrorHandler().Sync(p)
 		if p.HasError() {
@@ -1095,7 +1100,7 @@ func (p *PieParser) Slist() (localctx ISlistContext) {
 		_la = p.GetTokenStream().LA(1)
 
 
-		for ok := true; ok; ok = ((int64(_la) & ^0x3f) == 0 && ((int64(1) << _la) & 26221824) != 0) {
+		for ok := true; ok; ok = ((int64(_la) & ^0x3f) == 0 && ((int64(1) << _la) & 419437824) != 0) {
 			{
 				p.SetState(72)
 				p.Statement()
@@ -1589,8 +1594,8 @@ func (s *ReturnStatementContext) Accept(visitor antlr.ParseTreeVisitor) interfac
 
 type IfStatementContext struct {
 	StatementContext
-	c  ISlistContext
-	el ISlistContext
+	c ISlistContext 
+	el ISlistContext 
 }
 
 func NewIfStatementContext(parser antlr.Parser, ctx antlr.ParserRuleContext) *IfStatementContext {
@@ -2071,7 +2076,7 @@ func (p *PieParser) Call() (localctx ICallContext) {
 	_la = p.GetTokenStream().LA(1)
 
 
-	if ((int64(_la) & ^0x3f) == 0 && ((int64(1) << _la) & 524288016) != 0) {
+	if ((int64(_la) & ^0x3f) == 0 && ((int64(1) << _la) & 8388608016) != 0) {
 		{
 			p.SetState(116)
 			p.Expr()
@@ -2278,7 +2283,7 @@ func (p *PieParser) Expr() (localctx IExprContext) {
 	_la = p.GetTokenStream().LA(1)
 
 
-	if _la == PieParserEQ || _la == PieParserLT {
+	if ((int64(_la) & ^0x3f) == 0 && ((int64(1) << _la) & 16515072) != 0) {
 		{
 			p.SetState(129)
 			p.CompOp()
@@ -3845,6 +3850,10 @@ type ICompOpContext interface {
 	// Getter signatures
 	EQ() antlr.TerminalNode
 	LT() antlr.TerminalNode
+	GT() antlr.TerminalNode
+	NEQ() antlr.TerminalNode
+	GEQ() antlr.TerminalNode
+	LEQ() antlr.TerminalNode
 
 	// IsCompOpContext differentiates from other interfaces.
 	IsCompOpContext()
@@ -3890,6 +3899,22 @@ func (s *CompOpContext) LT() antlr.TerminalNode {
 	return s.GetToken(PieParserLT, 0)
 }
 
+func (s *CompOpContext) GT() antlr.TerminalNode {
+	return s.GetToken(PieParserGT, 0)
+}
+
+func (s *CompOpContext) NEQ() antlr.TerminalNode {
+	return s.GetToken(PieParserNEQ, 0)
+}
+
+func (s *CompOpContext) GEQ() antlr.TerminalNode {
+	return s.GetToken(PieParserGEQ, 0)
+}
+
+func (s *CompOpContext) LEQ() antlr.TerminalNode {
+	return s.GetToken(PieParserLEQ, 0)
+}
+
 func (s *CompOpContext) GetRuleContext() antlr.RuleContext {
 	return s
 }
@@ -3922,7 +3947,7 @@ func (p *PieParser) CompOp() (localctx ICompOpContext) {
 		p.SetState(182)
 		_la = p.GetTokenStream().LA(1)
 
-		if !(_la == PieParserEQ || _la == PieParserLT) {
+		if !(((int64(_la) & ^0x3f) == 0 && ((int64(1) << _la) & 16515072) != 0)) {
 			p.GetErrorHandler().RecoverInline(p)
 		} else {
 			p.GetErrorHandler().ReportMatch(p)

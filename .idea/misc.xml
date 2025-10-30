@@ -22,6 +22,7 @@
           <option name="encoding" value="" />
           <option name="pkg" value="gen" />
           <option name="language" value="Go" />
+          <option name="generateListener" value="false" />
           <option name="generateVisitor" value="true" />
         </PerGrammarGenerationSettings>
         <PerGrammarGenerationSettings>

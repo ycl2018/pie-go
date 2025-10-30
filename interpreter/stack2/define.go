@@ -1,6 +1,10 @@
 package stack2
 
-import "github.com/ycl2018/pie-go/interpreter/asm"
+import (
+	"fmt"
+
+	"github.com/ycl2018/pie-go/interpreter/asm"
+)
 
 const (
 	FUNC = asm.FUNC
@@ -8,12 +12,88 @@ const (
 	POLL = asm.POLL
 )
 
+type Instr int
+
+func (i Instr) String() string {
+	switch i {
+	case InstrAdd:
+		return "add"
+	case InstrSub:
+		return "sub"
+	case InstrMul:
+		return "mul"
+	case InstrDiv:
+		return "div"
+	case InstrLT:
+		return "lt"
+	case InstrGT:
+		return "gt"
+	case InstrGEQ:
+		return "geq"
+	case InstrLEQ:
+		return "leq"
+	case InstrNEQ:
+		return "neq"
+	case InstrEQ:
+		return "eq"
+	case InstrCall:
+		return "call"
+	case InstrReturn:
+		return "ret"
+	case InstrBR:
+		return "br"
+	case InstrBRT:
+		return "brt"
+	case InstrBRF:
+		return "brf"
+	case InstrCConst:
+		return "cconst"
+	case InstrIConst:
+		return "iconst"
+	case InstrFConst:
+		return "fconst"
+	case InstrSConst:
+		return "sconst"
+	case InstrLoad:
+		return "load"
+	case InstrGLoad:
+		return "gload"
+	case InstrFLoad:
+		return "fload"
+	case InstrStore:
+		return "store"
+	case InstrGStore:
+		return "gstore"
+	case InstrFStore:
+		return "fstore"
+	case InstrPrint:
+		return "print"
+	case InstrStruct:
+		return "struct"
+	case InstrNull:
+		return "null"
+	case InstrPop:
+		return "pop"
+	case InstrHalt:
+		return "halt"
+	default:
+		if i < 0 {
+			return fmt.Sprintf("tag@%d", i)
+		}
+		panic(fmt.Sprintf("unknown instr %d", i))
+	}
+}
+
 const (
 	InstrAdd = iota + 1
 	InstrSub
 	InstrMul
 	InstrDiv
 	InstrLT
+	InstrGT
+	InstrGEQ
+	InstrLEQ
+	InstrNEQ
 	InstrEQ
 
 	InstrCall
@@ -48,6 +128,10 @@ var Instructions = []*asm.Instruction{
 	{"mul", []int32{}},
 	{"div", []int32{}},
 	{"lt", []int32{}},
+	{"gt", []int32{}},
+	{"geq", []int32{}},
+	{"leq", []int32{}},
+	{"neq", []int32{}},
 	{"eq", []int32{}},
 	{"call", []int32{FUNC}},
 	{"ret", []int32{}},
