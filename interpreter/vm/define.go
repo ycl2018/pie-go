@@ -7,7 +7,6 @@ import (
 )
 
 const (
-	FUNC = asm.FUNC
 	INT  = asm.INT
 	POLL = asm.POLL
 )
@@ -78,7 +77,7 @@ func (i Instr) String() string {
 		return "halt"
 	default:
 		if i < 0 {
-			return fmt.Sprintf("tag@%d", i)
+			return fmt.Sprintf("tag#%d:", i)
 		}
 		panic(fmt.Sprintf("unknown instr %d", i))
 	}
@@ -121,7 +120,7 @@ const (
 )
 
 // 基于栈的指令集
-var Instructions = []*asm.Instruction{
+var Instructions = []*Instruction{
 	nil,
 	{"add", []int32{}},
 	{"sub", []int32{}},
@@ -133,7 +132,7 @@ var Instructions = []*asm.Instruction{
 	{"leq", []int32{}},
 	{"neq", []int32{}},
 	{"eq", []int32{}},
-	{"call", []int32{FUNC}},
+	{"call", []int32{POLL}},
 	{"ret", []int32{}},
 	{"br", []int32{INT}},
 	{"brt", []int32{INT}},
@@ -144,12 +143,12 @@ var Instructions = []*asm.Instruction{
 	{"sconst", []int32{POLL}},
 	{"load", []int32{INT}},
 	{"gload", []int32{INT}},
-	{"fload", []int32{INT}},
+	{"fload", []int32{POLL}},
 	{"store", []int32{INT}},
 	{"gstore", []int32{INT}},
-	{"fstore", []int32{INT}},
+	{"fstore", []int32{POLL}},
 	{"print", []int32{}},
-	{"struct", []int32{INT}},
+	{"struct", []int32{POLL}},
 	{"null", []int32{}},
 	{"pop", []int32{}},
 	{"halt", []int32{}},

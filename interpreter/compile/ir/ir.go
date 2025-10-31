@@ -12,7 +12,16 @@ type StackInstr struct {
 }
 
 func (s StackInstr) Dump() string {
-	return fmt.Sprintf("%s %v\n", vm.Instr(s.OpCode), s.Operands)
+	if len(s.Operands) > 0 {
+		switch s.OpCode {
+		case vm.InstrBR, vm.InstrBRT, vm.InstrBRF:
+			return fmt.Sprintf("%-11s\ttag#%d\n", vm.Instr(s.OpCode), s.Operands[0])
+		}
+		return fmt.Sprintf("%-11s\t%v\n", vm.Instr(s.OpCode), s.Operands[0])
+	} else {
+		return fmt.Sprintf("%-11s\t\n", vm.Instr(s.OpCode))
+	}
+
 }
 
 // ConstKind 常量类型，存储于全局常量池

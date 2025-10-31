@@ -72,7 +72,7 @@ func NewStackFrame(f *asm.FunctionSymbol, returnAddr int32) *StackFrame {
 
 func NewInterpreter(input antlr.CharStream, ops ...Option) *Interpreter {
 	// 编译
-	assembler := asm.NewByteCodeAssembler(Instructions)
+	assembler := asm.NewByteCodeAssembler(nil)
 	lexer := gen.NewAssemblerLexer(input)
 	parser := gen.NewAssemblerParser(antlr.NewCommonTokenStream(lexer, 0))
 	parser.AsmGenerator = assembler
@@ -98,7 +98,7 @@ func NewInterpreter(input antlr.CharStream, ops ...Option) *Interpreter {
 		SP:            -1,
 		Globals:       make([]any, assembler.DataSize),
 		DataSize:      assembler.DataSize,
-		disAssembler:  asm.NewDisAssembler(Instructions, assembler.Code, assembler.ConstPool, assembler.FuncConsPool),
+		disAssembler:  asm.NewDisAssembler(nil, assembler.Code, assembler.ConstPool, assembler.FuncConsPool),
 	}
 	for _, op := range ops {
 		op(i)
@@ -159,10 +159,10 @@ func (i *Interpreter) cpu() {
 				i.PushOpStack(toString(op1) + toString(op2))
 			} else if op1Type.Kind() == reflect.Int32 && op2Type.Kind() == reflect.Int32 {
 				i.PushOpStack(toInt32(op2) + toInt32(op1))
-			} else  {
+			} else {
 				i.PushOpStack(toFloat32(op2) + toFloat32(op1))
 			}
-		case InstrSub, InstrMul, InstrDiv, InstrLT, InstrEQ, InstrLEQ,InstrNEQ,InstrGEQ, InstrGT:
+		case InstrSub, InstrMul, InstrDiv, InstrLT, InstrEQ, InstrLEQ, InstrNEQ, InstrGEQ, InstrGT:
 			// 弹出两个操作数，相加，push
 			op2, op1 := i.PopOpStack(), i.PopOpStack()
 			t2, t1 := reflect.TypeOf(op2), reflect.TypeOf(op1)
@@ -305,7 +305,7 @@ func (i *Interpreter) cpu() {
 	}
 }
 
-func toInt32(x any) (int32) {
+func toInt32(x any) int32 {
 	switch x.(type) {
 	case int32:
 		return x.(int32)
@@ -329,7 +329,7 @@ func toString(x any) string {
 	}
 }
 
-func toFloat32(x any) (float32) {
+func toFloat32(x any) float32 {
 	switch x.(type) {
 	case float32:
 		return x.(float32)

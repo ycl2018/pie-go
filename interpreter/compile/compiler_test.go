@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/antlr4-go/antlr/v4"
+	"github.com/ycl2018/pie-go/interpreter/vm"
 )
 
 func TestPieInterpreter_Interp(t *testing.T) {
@@ -130,11 +131,22 @@ print u.addr
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewPieCompiler()
-			_, err := p.Compile(antlr.NewInputStream(tt.program))
+			code, err := p.Compile(antlr.NewInputStream(tt.program))
 			if err != nil {
 				t.Fatal(err)
 			}
 			t.Log(p.Dump())
+			disAssemble := vm.NewDisAssembler(vm.Instructions)
+			 err = disAssemble.DisAssemble(code)
+			 if err != nil {
+			 	t.Fatal(err)
+			 }
+			 dumped, err := disAssemble.Dump()
+			 if err != nil {
+			 	t.Fatal(err)
+			 }
+			 t.Log(dumped)
+
 		})
 	}
 }

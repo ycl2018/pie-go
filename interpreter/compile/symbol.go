@@ -225,27 +225,27 @@ func DumpSymbol(s Symbol) string {
 	case *ConstSymbol:
 		switch s.Kind {
 		case ir.ConstFunc:
-			return fmt.Sprintf("%d:%s\t%s\targs=%d locals=%d addr=%d\n",
+			return fmt.Sprintf("#%04d:\t%-11s\t%-11s\targs=%d locals=%d addr=#%d\n",
 				s.Address, s.Kind, s.Name, s.Fields[1], s.Fields[2], s.Fields[3])
 		case ir.ConstStruct:
 			// 结构体常量
 			var sb strings.Builder
-			sb.WriteString(fmt.Sprintf("%d:%s\t%s\n", s.Address, s.Kind, s.Name))
+			sb.WriteString(fmt.Sprintf("#%04d:\t%-11s\t%s\n", s.Address, s.Kind, s.Name))
 			for i, field := range s.Fields {
 				if i == 0 {
 					continue
 				}
-				sb.WriteString(fmt.Sprintf("\tfield%d:\t.const->%d\n", i-1, field))
+				sb.WriteString(fmt.Sprintf("    field%d:\t.const#%04d\n", i-1, field))
 			}
 			return sb.String()
 		case ir.ConstString:
-			return fmt.Sprintf("%d:%s\t%q\n", s.Address, s.Kind, s.Value)
+			return fmt.Sprintf("#%04d:\t%-11s\t%q\n", s.Address, s.Kind, s.Value)
 		default:
-			return fmt.Sprintf("%d:%s\t%s\n", s.Address, s.Kind, s.Name)
+			return fmt.Sprintf("#%04d:\t%-11s\t%-11s\n", s.Address, s.Kind, s.Name)
 		}
 	case *StructSymbol, *FunctionSymbol:
 		return ""
 	default:
-		return fmt.Sprintf("%d:\t%s\n", s.GetAddress(), s.GetName())
+		return fmt.Sprintf("#%04d:\t%-11s\n", s.GetAddress(), s.GetName())
 	}
 }

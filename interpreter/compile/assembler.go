@@ -60,7 +60,7 @@ func (a *Assembler) Assemble() []byte {
 
 func (a *Assembler) writeConstPool() {
 	// 常量池大小
-	a.writeUInt16(a.GScope.LocalVarAllocator)
+	a.writeUInt16(uint16(len(a.GScope.Consts)))
 	// 常量池内容
 	var constPool []*ConstSymbol
 	for _, constVal := range a.GScope.Consts {
@@ -106,7 +106,7 @@ func (a *Assembler) writeFloat32(v float32) {
 	a.writeInt32(raw)
 }
 
-//[tag(1byte)][len(2byte)][n bytes UTF-8]
+// [tag(1byte)][len(2byte)][n bytes UTF-8]
 func (a *Assembler) writeString(v string) {
 	a.writeUInt16(uint16(len(v)))
 	for i := 0; i < len(v); i++ {
