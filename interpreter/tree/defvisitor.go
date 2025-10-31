@@ -94,7 +94,7 @@ func (p *PieDefineVisitor) VisitSlist(ctx *gen2.SlistContext) interface{} {
 	return nil
 }
 
-func (p *PieDefineVisitor) VisitAssignementStatement(ctx *gen2.AssignementStatementContext) interface{} {
+func (p *PieDefineVisitor) VisitAssignmentStatement(ctx *gen2.AssignmentStatementContext) interface{} {
 	// qid '=' expr NL
 	p.SaveScope(ctx, p.CurScope)
 	qidCtx := ctx.Qid()

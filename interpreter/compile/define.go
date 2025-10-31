@@ -2,6 +2,7 @@ package compile
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/antlr4-go/antlr/v4"
 	gen2 "github.com/ycl2018/pie-go/gen"
@@ -12,51 +13,53 @@ var _ gen2.PieVisitor = (*PieDefineVisitor)(nil)
 
 type PieDefineVisitor struct {
 	*gen2.BasePieVisitor
+	Log            InterpreterListener
 	CurScope       Scope
 	Scopes         map[antlr.ParserRuleContext]Scope
 	GlobalScope    *GlobalScope
 	ScopeAllocator int32
-	FuncAllocator  int32
 }
 
 func (p *PieDefineVisitor) VisitFloatAtom(ctx *gen2.FloatAtomContext) interface{} {
+	value, _ := strconv.ParseFloat(ctx.FLOAT().GetText(), 32)
 	p.GlobalScope.Define(&ConstSymbol{
-		Name: fmt.Sprintf("%s_%s", ir.ConstFloat32, ctx.FLOAT().GetText()),
-		Line: int32(ctx.GetStart().GetLine()),
-		Kind: ir.ConstFloat32,
+		Name:  fmt.Sprintf("%s_%s", ir.ConstFloat32, ctx.FLOAT().GetText()),
+		Line:  int32(ctx.GetStart().GetLine()),
+		Kind:  ir.ConstFloat32,
+		Value: float32(value),
 	})
 	return nil
 }
 
 func (p *PieDefineVisitor) VisitStringAtom(ctx *gen2.StringAtomContext) interface{} {
+	value := ctx.STRING().GetText()[1 : len(ctx.STRING().GetText())-1]
 	p.GlobalScope.Define(&ConstSymbol{
-		Name: fmt.Sprintf("%s_%s", ir.ConstString, ctx.STRING().GetText()),
-		Line: int32(ctx.GetStart().GetLine()),
-		Kind: ir.ConstString,
+		Name:  fmt.Sprintf("%s_%s", ir.ConstString, value),
+		Line:  int32(ctx.GetStart().GetLine()),
+		Kind:  ir.ConstString,
+		Value: value,
 	})
 	return nil
 }
-
-//func (p *PieDefineVisitor) VisitQidAtom(ctx *gen2.QidAtomContext) interface{} {
-//	return p.VisitQid(ctx.Qid().(*gen2.QidContext))
-//}
 
 func (p *PieDefineVisitor) VisitQid(ctx *gen2.QidContext) interface{} {
 	p.SaveScope(ctx, p.CurScope)
 	firstID := ctx.ID(0)
 	// 检查符号是否定义
 	if p.CurScope.Resolve(firstID.GetText()) == nil {
-		panic(fmt.Sprintf("undefined symbol: %s line %d", firstID.GetText(), firstID.GetSymbol().GetLine()))
+		p.Log.ErrorToken(firstID.GetSymbol(), "undefined symbol: %s", firstID.GetText())
+		return nil
 	}
 	return p.VisitChildren(ctx)
 }
 
-func NewPieDefineVisitor() *PieDefineVisitor {
+func NewPieDefineVisitor(log InterpreterListener) *PieDefineVisitor {
 	gScope := NewGlobalScope()
 	ret := &PieDefineVisitor{
 		CurScope:    gScope,
 		GlobalScope: gScope,
 		Scopes:      make(map[antlr.ParserRuleContext]Scope),
+		Log:         log,
 	}
 	ret.BasePieVisitor = &gen2.BasePieVisitor{ParseTreeVisitor: &BaseVisitor{realVisitor: ret}}
 	return ret
@@ -82,12 +85,12 @@ func (p *PieDefineVisitor) VisitStructDefinition(ctx *gen2.StructDefinitionConte
 	// 'struct' name=ID '{' vardef (',' vardef)* '}' NL
 	structName := ctx.ID().GetText()
 	structSymbol := NewStructSymbol(structName, p.CurScope)
-	p.CurScope.Define(structSymbol)
 	p.CurScope = structSymbol
 	for _, vardef := range ctx.AllVardef() {
 		p.Visit(vardef)
 	}
 	p.CurScope = structSymbol.EnclosingScope
+	p.CurScope.Define(structSymbol)
 	return nil
 }
 
@@ -95,13 +98,10 @@ func (p *PieDefineVisitor) VisitFunctionDefinition(ctx *gen2.FunctionDefinitionC
 	// 'def' ID '(' (vardef (',' vardef)* )? ')' slist
 	funcName := ctx.ID().GetText()
 	funcSymbol := &FunctionSymbol{
-		ID:             p.FuncAllocator,
 		Name:           funcName,
-		BlockAst:       ctx.Slist(),
 		EnclosingScope: p.CurScope,
 	}
-	p.CurScope.Define(funcSymbol)
-	p.FuncAllocator++
+
 	p.SaveScope(ctx, funcSymbol)
 	p.CurScope = funcSymbol
 	// vardefs
@@ -121,10 +121,11 @@ func (p *PieDefineVisitor) VisitFunctionDefinition(ctx *gen2.FunctionDefinitionC
 	p.Visit(ctx.Slist())
 	// 这里直接回退到funcSymbol的scope
 	p.CurScope = funcSymbol.EnclosingScope
+	p.CurScope.Define(funcSymbol)
 	return nil
 }
 
-func (p *PieDefineVisitor) VisitAssignementStatement(ctx *gen2.AssignementStatementContext) interface{} {
+func (p *PieDefineVisitor) VisitAssignmentStatement(ctx *gen2.AssignmentStatementContext) interface{} {
 	// qid '=' expr NL
 	p.SaveScope(ctx, p.CurScope)
 	qidCtx := ctx.Qid()
@@ -143,7 +144,8 @@ func (p *PieDefineVisitor) VisitAssignementStatement(ctx *gen2.AssignementStatem
 	}
 	if len(ctx.Qid().AllID()) > 1 {
 		if p.CurScope.Resolve(vName) == nil {
-			panic(fmt.Sprintf("undefined symbol: %s line %d", vName, ctx.GetStart().GetLine()))
+			p.Log.ErrorToken(ctx.GetStart(), "undefined symbol: %s", vName)
+			return nil
 		}
 	}
 	p.Visit(ctx.Expr())
@@ -152,13 +154,6 @@ func (p *PieDefineVisitor) VisitAssignementStatement(ctx *gen2.AssignementStatem
 
 func (p *PieDefineVisitor) VisitCall(ctx *gen2.CallContext) interface{} {
 	// name=ID '(' (expr (',' expr )*)? ')'
-	// 检查符号是否定义
-
-	// 允许前向引用
-	//funcName := ctx.GetName().GetText()
-	//if p.CurScope.Resolve(funcName) == nil {
-	//	panic(fmt.Sprintf("undefined symbol: %s line %d", funcName, ctx.GetStart().GetLine()))
-	//}
 	p.SaveScope(ctx, p.CurScope)
 	for _, context := range ctx.AllExpr() {
 		context.Accept(p)
@@ -168,11 +163,6 @@ func (p *PieDefineVisitor) VisitCall(ctx *gen2.CallContext) interface{} {
 
 func (p *PieDefineVisitor) VisitInstance(ctx *gen2.InstanceContext) interface{} {
 	// 'new' sname=ID NL
-	// sname := ctx.GetSname().GetText()
-	//// 检查符号是否定义
-	//if p.CurScope.Resolve(sname) == nil {
-	//	panic(fmt.Sprintf("undefined symbol: %s line %d", sname, ctx.GetStart().GetLine()))
-	//}
 	p.SaveScope(ctx, p.CurScope)
 	return nil
 }

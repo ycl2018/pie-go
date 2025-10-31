@@ -7,33 +7,34 @@ import (
 	"github.com/antlr4-go/antlr/v4"
 	gen2 "github.com/ycl2018/pie-go/gen"
 	"github.com/ycl2018/pie-go/interpreter/compile/ir"
-	"github.com/ycl2018/pie-go/interpreter/stack2"
+	"github.com/ycl2018/pie-go/interpreter/vm"
 )
+
+var _ gen2.PieVisitor = (*StackCompileVisitor)(nil)
 
 type StackCompileVisitor struct {
 	gen2.BasePieVisitor
-	InterpreterListener InterpreterListener
-	Scopes              map[antlr.ParserRuleContext]Scope // 作用域树&符号表存储
-	GlobalScope         *GlobalScope
-	AllFuncs            []*FunctionSymbol // 所有函数,不包含主函数
-	MainFunc            *FunctionSymbol
-	CurFunc             *FunctionSymbol
-	ToBeFilledBrfAddrs  map[*ir.StackInstr][]*ir.StackInstr // 目标分支跳转Tag -> 需要回填的分支跳转指令列表
-	CallInstrs          []*ir.StackInstr
-	TagAlloc            int32
+	Log         InterpreterListener
+	Scopes      map[antlr.ParserRuleContext]Scope // 作用域树&符号表存储
+	GlobalScope *GlobalScope
+	AllFuncs    []*FunctionSymbol // 所有函数,不包含主函数
+	MainFunc    *FunctionSymbol
+	CurFunc     *FunctionSymbol
+	ToBeFilled  map[*ir.StackInstr][]*ir.StackInstr // 目标分支跳转Tag -> 需要回填的分支跳转指令列表
+	TagAlloc    int32
 }
 
-func NewStackCompileVisitor(scopes map[antlr.ParserRuleContext]Scope) *StackCompileVisitor {
+func NewStackCompileVisitor(scopes map[antlr.ParserRuleContext]Scope, globalScope *GlobalScope, log InterpreterListener) *StackCompileVisitor {
 	mainFunc := &FunctionSymbol{
 		Name: "main",
 	}
 	s := &StackCompileVisitor{
-		InterpreterListener: DefaultInterpreterListener{},
-		Scopes:              scopes,
-		GlobalScope:         NewGlobalScope(),
-		ToBeFilledBrfAddrs:  map[*ir.StackInstr][]*ir.StackInstr{},
-		MainFunc:            mainFunc,
-		CurFunc:             mainFunc,
+		Log:         log,
+		Scopes:      scopes,
+		GlobalScope: globalScope,
+		ToBeFilled:  map[*ir.StackInstr][]*ir.StackInstr{},
+		MainFunc:    mainFunc,
+		CurFunc:     mainFunc,
 	}
 	s.BasePieVisitor = gen2.BasePieVisitor{ParseTreeVisitor: &BaseVisitor{realVisitor: s}}
 	return s
@@ -49,31 +50,36 @@ func (s *StackCompileVisitor) AllocTag() int {
 }
 
 func (s *StackCompileVisitor) fillTargetTag(instr *ir.StackInstr, targetTag *ir.StackInstr) {
-	s.ToBeFilledBrfAddrs[targetTag] = append(s.ToBeFilledBrfAddrs[targetTag], instr)
+	s.ToBeFilled[targetTag] = append(s.ToBeFilled[targetTag], instr)
 	instr.Operands[0] = int32(targetTag.OpCode)
+}
+
+func (s *StackCompileVisitor) VisitProgram(ctx *gen2.ProgramContext) interface{} {
+	s.VisitChildren(ctx)
+	// 补充主函数Halt指令IR
+	if len(s.MainFunc.Code) == 0 || s.MainFunc.Code[len(s.MainFunc.Code)-1].OpCode != vm.InstrHalt {
+		s.MainFunc.Code = append(s.MainFunc.Code, &ir.StackInstr{
+			OpCode:   vm.InstrHalt,
+			Operands: []int32{},
+		})
+	}
+	return nil
 }
 
 func (s *StackCompileVisitor) VisitFunctionDefinition(ctx *gen2.FunctionDefinitionContext) interface{} {
 	// 'def' ID '(' (vardef (',' vardef)* )? ')' slist
+	// 生成函数定义 IR
 	funcName := ctx.ID().GetText()
 	scope := s.Scopes[ctx]
 	funcSymbol := scope.Resolve(funcName).(*FunctionSymbol)
 	s.CurFunc = funcSymbol
-	// 生成函数定义 IR
-	// 生成参数列表IR
-	//paramLen := len(ctx.AllVardef())
-	//for i := paramLen - 1; i >= 0; i-- {
-	//	s.WriteInstr(&ir.StackInstr{
-	//		OpCode:   stack2.InstrLoad,
-	//		Operands: []int32{int32(i)},
-	//	})
-	//}
+	// 参数列表入栈由解释器负责自动执行
 	// 生成函数体IR
 	ctx.Slist().Accept(s)
 	// 补充返回指令IR
-	if len(s.CurFunc.Code) == 0 || s.CurFunc.Code[len(s.CurFunc.Code)-1].OpCode != stack2.InstrReturn {
+	if len(s.CurFunc.Code) == 0 || s.CurFunc.Code[len(s.CurFunc.Code)-1].OpCode != vm.InstrReturn {
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrReturn,
+			OpCode:   vm.InstrReturn,
 			Operands: []int32{},
 		})
 	}
@@ -82,17 +88,17 @@ func (s *StackCompileVisitor) VisitFunctionDefinition(ctx *gen2.FunctionDefiniti
 	return nil
 }
 
-func (s *StackCompileVisitor) VisitAssignementStatement(ctx *gen2.AssignementStatementContext) interface{} {
+func (s *StackCompileVisitor) VisitAssignmentStatement(ctx *gen2.AssignmentStatementContext) interface{} {
 	ctx.Expr().Accept(s)
 	qid := ctx.Qid()
 	qidSymbol := s.Scopes[qid.(*gen2.QidContext)].Resolve(qid.ID(0).GetText())
 	symbolScope := qidSymbol.Scope()
 	isGlobal := symbolScope.GetName() == GlobalScopeName
-	loadInstr := stack2.InstrLoad
-	storeInstr := stack2.InstrStore
+	loadInstr := vm.InstrLoad
+	storeInstr := vm.InstrStore
 	if isGlobal {
-		loadInstr = stack2.InstrGLoad
-		storeInstr = stack2.InstrGStore
+		loadInstr = vm.InstrGLoad
+		storeInstr = vm.InstrGStore
 	}
 	if len(qid.AllID()) == 1 {
 		s.WriteInstr(&ir.StackInstr{
@@ -111,7 +117,7 @@ func (s *StackCompileVisitor) VisitAssignementStatement(ctx *gen2.AssignementSta
 			cSymbol := getStringConst(memberName, s.GlobalScope)
 			opCode := cSymbol.GetAddress() // 成员名称常量地址
 			s.WriteInstr(&ir.StackInstr{
-				OpCode:   stack2.InstrFLoad,
+				OpCode:   vm.InstrFLoad,
 				Operands: []int32{opCode},
 			})
 		}
@@ -120,7 +126,7 @@ func (s *StackCompileVisitor) VisitAssignementStatement(ctx *gen2.AssignementSta
 		opCode := cSymbol.GetAddress() // 成员名称常量地址
 		// 生成赋值语句IR
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrFStore,
+			OpCode:   vm.InstrFStore,
 			Operands: []int32{opCode}, // 成员名称常量地址
 		})
 	}
@@ -129,17 +135,20 @@ func (s *StackCompileVisitor) VisitAssignementStatement(ctx *gen2.AssignementSta
 
 func getStringConst(memberName string, scope *GlobalScope) Symbol {
 	constSymbol := &ConstSymbol{
-		Name: fmt.Sprintf("%s_%s", ir.ConstString, memberName),
-		Kind: ir.ConstString,
+		Name:  fmt.Sprintf("%s_%s", ir.ConstString, memberName),
+		Kind:  ir.ConstString,
+		Value: memberName,
 	}
 	cSymbol, _ := scope.DefineOrGetConst(constSymbol)
 	return cSymbol
 }
 
 func (s *StackCompileVisitor) VisitReturnStatement(ctx *gen2.ReturnStatementContext) interface{} {
-	ctx.Expr().Accept(s)
+	if ctx.Expr() != nil {
+		ctx.Expr().Accept(s)
+	}
 	s.WriteInstr(&ir.StackInstr{
-		OpCode:   stack2.InstrReturn,
+		OpCode:   vm.InstrReturn,
 		Operands: []int32{},
 	})
 	return nil
@@ -148,7 +157,7 @@ func (s *StackCompileVisitor) VisitReturnStatement(ctx *gen2.ReturnStatementCont
 func (s *StackCompileVisitor) VisitPrintStatement(ctx *gen2.PrintStatementContext) interface{} {
 	ctx.Expr().Accept(s)
 	s.WriteInstr(&ir.StackInstr{
-		OpCode:   stack2.InstrPrint,
+		OpCode:   vm.InstrPrint,
 		Operands: []int32{},
 	})
 	return nil
@@ -158,7 +167,7 @@ func (s *StackCompileVisitor) VisitIfStatement(ctx *gen2.IfStatementContext) int
 	ctx.Expr().Accept(s)
 	// 生成分支跳转IR
 	brfInstr := &ir.StackInstr{
-		OpCode:   stack2.InstrBRF,
+		OpCode:   vm.InstrBRF,
 		Operands: []int32{-1}, // 占位，等编译为二进制时再回填
 	}
 	s.WriteInstr(brfInstr)
@@ -168,7 +177,7 @@ func (s *StackCompileVisitor) VisitIfStatement(ctx *gen2.IfStatementContext) int
 	if ctx.GetEl() != nil {
 		var brInstr *ir.StackInstr
 		brInstr = &ir.StackInstr{
-			OpCode:   stack2.InstrBR,
+			OpCode:   vm.InstrBR,
 			Operands: []int32{-1}, // 占位，等编译为二进制时再回填
 		}
 		s.WriteInstr(brInstr)
@@ -210,14 +219,14 @@ func (s *StackCompileVisitor) VisitWhileStatement(ctx *gen2.WhileStatementContex
 	ctx.Expr().Accept(s)
 	// 生成分支跳转IR
 	brfInstr := &ir.StackInstr{
-		OpCode:   stack2.InstrBRF,
+		OpCode:   vm.InstrBRF,
 		Operands: []int32{-1}, // 占位，等编译为二进制时再回填
 	}
 	s.WriteInstr(brfInstr)
 	// 生成分支语句IR
 	ctx.Slist().Accept(s)
 	brInstr := &ir.StackInstr{
-		OpCode:   stack2.InstrBR,
+		OpCode:   vm.InstrBR,
 		Operands: []int32{-1}, // 占位，等编译为二进制时再回填
 	}
 	s.WriteInstr(brInstr)
@@ -238,16 +247,16 @@ func (s *StackCompileVisitor) VisitCall(ctx *gen2.CallContext) interface{} {
 	}
 	funcName := ctx.GetName()
 	if s.Scopes[ctx].Resolve(funcName.GetText()) == nil {
-		panic(fmt.Sprintf("undefined func: %s line %d", funcName.GetText(), ctx.GetStart().GetLine()))
+		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("undefined func: %s", funcName.GetText()))
+		return nil
 	}
 	fSymbol := s.Scopes[ctx].Resolve(funcName.GetText()).(*FunctionSymbol)
 	// 生成调用指令IR
 	callInstr := &ir.StackInstr{
-		OpCode:   stack2.InstrCall,
-		Operands: []int32{fSymbol.ID}, // 函数ID填充，编译为二进制时会替换为函数地址
+		OpCode:   vm.InstrCall,
+		Operands: []int32{fSymbol.Address}, // 函数ID填充，编译为二进制时会替换为函数地址
 	}
 	s.WriteInstr(callInstr)
-	s.CallInstrs = append(s.CallInstrs, callInstr)
 	return nil
 }
 
@@ -285,7 +294,7 @@ func (s *StackCompileVisitor) VisitIntAtom(ctx *gen2.IntAtomContext) interface{}
 	valStr := ctx.INT().GetText()
 	ival, _ := strconv.ParseInt(valStr, 10, 32)
 	s.WriteInstr(&ir.StackInstr{
-		OpCode:   stack2.InstrIConst,
+		OpCode:   vm.InstrIConst,
 		Operands: []int32{int32(ival)}, // 整数常量地址
 	})
 	return nil
@@ -295,7 +304,7 @@ func (s *StackCompileVisitor) VisitCharAtom(ctx *gen2.CharAtomContext) interface
 	valStr := ctx.CHAR().GetText()
 	ival := rune(valStr[0])
 	s.WriteInstr(&ir.StackInstr{
-		OpCode:   stack2.InstrCConst,
+		OpCode:   vm.InstrCConst,
 		Operands: []int32{ival}, // 字符常量地址
 	})
 	return nil
@@ -307,7 +316,7 @@ func (s *StackCompileVisitor) VisitFloatAtom(ctx *gen2.FloatAtomContext) interfa
 	// 浮点数常量地址
 	symbol := getFloatConst(float32(fval), s.GlobalScope)
 	s.WriteInstr(&ir.StackInstr{
-		OpCode:   stack2.InstrFConst,
+		OpCode:   vm.InstrFConst,
 		Operands: []int32{symbol.GetAddress()}, // 浮点数常量地址
 	})
 	return nil
@@ -315,8 +324,9 @@ func (s *StackCompileVisitor) VisitFloatAtom(ctx *gen2.FloatAtomContext) interfa
 
 func getFloatConst(fval float32, scope *GlobalScope) Symbol {
 	constSymbol := &ConstSymbol{
-		Name: fmt.Sprintf("%s_%f", ir.ConstFloat32, fval),
-		Kind: ir.ConstFloat32,
+		Name:  fmt.Sprintf("%s_%f", ir.ConstFloat32, fval),
+		Value: fval,
+		Kind:  ir.ConstFloat32,
 	}
 	symbol, _ := scope.DefineOrGetConst(constSymbol)
 	return symbol
@@ -326,7 +336,7 @@ func (s *StackCompileVisitor) VisitStringAtom(ctx *gen2.StringAtomContext) inter
 	// 字符串常量地址
 	symbol := getStringConst(valStr[1:len(valStr)-1], s.GlobalScope)
 	s.WriteInstr(&ir.StackInstr{
-		OpCode:   stack2.InstrSConst,
+		OpCode:   vm.InstrSConst,
 		Operands: []int32{symbol.GetAddress()}, // 字符串常量地址
 	})
 	return nil
@@ -334,15 +344,15 @@ func (s *StackCompileVisitor) VisitStringAtom(ctx *gen2.StringAtomContext) inter
 
 func (s *StackCompileVisitor) VisitInstance(ctx *gen2.InstanceContext) interface{} {
 	// 'new' sname=ID
-	// 生成new指令IR
 	structName := ctx.GetSname().GetText()
-	structSymbol := s.Scopes[ctx].Resolve(structName) // FIXME: 全局scope要从 const pool 中获取
+	structSymbol := s.Scopes[ctx].Resolve(structName)
 	if structSymbol == nil {
-		panic(fmt.Sprintf("undefined struct: %s line %d", structName, ctx.GetStart().GetLine()))
+		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("undefined struct: %s", structName))
+		return nil
 	}
 	s.WriteInstr(&ir.StackInstr{
-		OpCode:   stack2.InstrStruct,
-		Operands: []int32{structSymbol.GetAddress()}, // 结构体地址,指向全局scope中的结构体
+		OpCode:   vm.InstrStruct,
+		Operands: []int32{structSymbol.GetAddress()},
 	})
 	return nil
 }
@@ -351,9 +361,9 @@ func (s *StackCompileVisitor) VisitQid(ctx *gen2.QidContext) interface{} {
 	// 只处理右值
 	vName := ctx.ID(0).GetText()
 	scope := s.Scopes[ctx]
-	loadInstr := stack2.InstrLoad
+	loadInstr := vm.InstrLoad
 	if scope.GetName() == GlobalScopeName {
-		loadInstr = stack2.InstrGLoad
+		loadInstr = vm.InstrGLoad
 	}
 	sym := scope.Resolve(vName)
 	s.WriteInstr(&ir.StackInstr{
@@ -364,7 +374,7 @@ func (s *StackCompileVisitor) VisitQid(ctx *gen2.QidContext) interface{} {
 	for i := 1; i < len(ctx.AllID()); i++ {
 		field := getStringConst(ctx.ID(i).GetText(), s.GlobalScope)
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrFLoad,
+			OpCode:   vm.InstrFLoad,
 			Operands: []int32{field.GetAddress()}, // 变量地址
 		})
 	}
@@ -376,12 +386,12 @@ func (s *StackCompileVisitor) VisitMultOp(ctx *gen2.MultOpContext) interface{} {
 	op := ctx.GetText()
 	if op == "*" {
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrMul,
+			OpCode:   vm.InstrMul,
 			Operands: []int32{},
 		})
 	} else if op == "/" {
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrDiv,
+			OpCode:   vm.InstrDiv,
 			Operands: []int32{},
 		})
 	}
@@ -393,12 +403,12 @@ func (s *StackCompileVisitor) VisitAddOp(ctx *gen2.AddOpContext) interface{} {
 	op := ctx.GetText()
 	if op == "+" {
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrAdd,
+			OpCode:   vm.InstrAdd,
 			Operands: []int32{},
 		})
 	} else if op == "-" {
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrSub,
+			OpCode:   vm.InstrSub,
 			Operands: []int32{},
 		})
 	}
@@ -411,36 +421,36 @@ func (s *StackCompileVisitor) VisitCompOp(ctx *gen2.CompOpContext) interface{} {
 	switch op {
 	case "==":
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrEQ,
+			OpCode:   vm.InstrEQ,
 			Operands: []int32{},
 		})
 	case "<":
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrLT,
+			OpCode:   vm.InstrLT,
 			Operands: []int32{},
 		})
 	case ">":
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrGT,
+			OpCode:   vm.InstrGT,
 			Operands: []int32{},
 		})
 	case ">=":
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrGEQ,
+			OpCode:   vm.InstrGEQ,
 			Operands: []int32{},
 		})
 	case "<=":
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrLEQ,
+			OpCode:   vm.InstrLEQ,
 			Operands: []int32{},
 		})
 	case "!=":
 		s.WriteInstr(&ir.StackInstr{
-			OpCode:   stack2.InstrNEQ,
+			OpCode:   vm.InstrNEQ,
 			Operands: []int32{},
 		})
 	default:
-		panic(fmt.Sprintf("unknown compOp %s", op))
+		s.Log.ErrorToken(ctx.GetStart(), fmt.Sprintf("unknown compOp %s", op))
 	}
 	return nil
 }

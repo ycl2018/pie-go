@@ -50,7 +50,7 @@ func (v *RuntimeVisitor) VisitProgram(ctx *gen2.ProgramContext) interface{} {
 	return nil
 }
 
-func (v *RuntimeVisitor) VisitAssignementStatement(ctx *gen2.AssignementStatementContext) interface{} {
+func (v *RuntimeVisitor) VisitAssignmentStatement(ctx *gen2.AssignmentStatementContext) interface{} {
 	// qid '=' expr NL
 	qid := ctx.Qid()
 	expr := ctx.Expr()

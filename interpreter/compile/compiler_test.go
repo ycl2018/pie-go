@@ -130,7 +130,10 @@ print u.addr
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewPieCompiler()
-			p.Execute(antlr.NewInputStream(tt.program))
+			_, err := p.Compile(antlr.NewInputStream(tt.program))
+			if err != nil {
+				t.Fatal(err)
+			}
 			t.Log(p.Dump())
 		})
 	}

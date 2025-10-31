@@ -24,8 +24,8 @@ slist
 
 statement
 	:	structDefinition						#structDefinitionStatement
-	|	qid '=' expr NL							#assignementStatement
-	|	'return' expr NL						#returnStatement
+	|	qid '=' expr NL							#assignmentStatement
+	|	'return' expr? NL						#returnStatement
 	|	'print' expr NL							#printStatement
 	|	'if' expr c=slist ('else' el=slist)?	#ifStatement
 	|	'while' expr slist						#whileStatement

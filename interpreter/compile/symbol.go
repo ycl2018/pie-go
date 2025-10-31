@@ -4,11 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ycl2018/pie-go/gen"
 	"github.com/ycl2018/pie-go/interpreter/compile/ir"
 )
-
-const GlobalScopeName = "global"
 
 type Symbol interface {
 	GetName() string
@@ -18,167 +15,21 @@ type Symbol interface {
 	SetAddress(address int32)
 }
 
-type Scope interface {
-	Resolve(string) Symbol
-	GetName() string
-	Define(symbol Symbol)
-	ParentScope() Scope
-}
-
-type GlobalScope struct {
-	Symbols map[string]Symbol
-	Consts  map[string]*ConstSymbol
-}
-
-func NewGlobalScope() *GlobalScope {
-	return &GlobalScope{
-		Symbols: map[string]Symbol{},
-		Consts:  map[string]*ConstSymbol{},
-	}
-}
-
-func (g *GlobalScope) Define(symbol Symbol) {
-	switch s := symbol.(type) {
-	case *ConstSymbol:
-		s.SetScope(g)
-		name := s.Name
-		if g.Consts[name] != nil {
-			return
-		}
-		s.SetAddress(int32(len(g.Consts)))
-		g.Consts[s.GetName()] = s
-	case *StructSymbol:
-		if g.Symbols[symbol.GetName()] != nil {
-			return
-		}
-		fields := make([]int32, len(s.Fields))
-		for _, field := range s.Fields {
-			sym := getStringConst(field.GetName(), g)
-			fields = append(fields, sym.GetAddress())
-		}
-		constSym := &ConstSymbol{
-			Name:   s.Name,
-			Kind:   ir.ConstStruct,
-			Fields: fields,
-		}
-		g.Define(constSym) // 存储结构体常量到全局常量池
-		g.Symbols[s.Name] = s
-		s.SetScope(g)
-		symbol.SetAddress(constSym.GetAddress())
-	default:
-		if g.Symbols[symbol.GetName()] != nil {
-			return
-		}
-		symbol.SetAddress(int32(len(g.Symbols)))
-		g.Symbols[symbol.GetName()] = symbol
-		symbol.SetScope(g)
-	}
-}
-
-func (g *GlobalScope) DefineOrGetConst(symbol *ConstSymbol) (Symbol, bool) {
-	name := symbol.Name
-	if g.Consts[name] != nil {
-		return g.Consts[name], false
-	}
-	g.Define(symbol)
-	return symbol, true
-}
-
-func (g *GlobalScope) Resolve(name string) Symbol {
-	if v, ok := g.Symbols[name]; ok {
-		return v
-	}
-	return nil
-}
-
-func (g *GlobalScope) GetName() string {
-	return GlobalScopeName
-}
-func (g *GlobalScope) ParentScope() Scope {
-	return nil
-}
-
-type LocalScope struct {
-	ID             int32
-	Symbols        map[string]Symbol
-	EnclosingScope Scope
-	StructConsts   map[string]*ConstSymbol
-	BaseAllocAddr  int32
-}
-
-func (l *LocalScope) Define(symbol Symbol) {
-	switch s := symbol.(type) {
-	case *ConstSymbol:
-		panic("const symbol define in local scope")
-	case *StructSymbol:
-		if l.Symbols[symbol.GetName()] != nil {
-			panic(fmt.Sprintf("duplicate struct %s in local scope", symbol.GetName()))
-			return
-		}
-		// 同时存储在全局 scope 中
-		globalScope := l.EnclosingScope
-		for globalScope != nil && globalScope.GetName() != GlobalScopeName {
-			globalScope = globalScope.ParentScope()
-		}
-		gName := fmt.Sprintf("%d::%s", l.ID, symbol.GetName())
-		globalScope.Define(&StructSymbol{
-			Fields: s.Fields,
-			// 通过 scope ID 来避免命名冲突
-			Name: gName,
-		})
-		sym := globalScope.Resolve(gName)
-		symbol.SetAddress(sym.GetAddress()) // 指向全局 scope 中的结构体
-		l.Symbols[symbol.GetName()] = symbol
-		symbol.SetScope(l)
-	default:
-		if l.Symbols[symbol.GetName()] != nil {
-			panic(fmt.Sprintf("duplicate %s in local scope", symbol.GetName()))
-			return
-		}
-		symbol.SetAddress(l.BaseAllocAddr + int32(len(l.Symbols)))
-		l.Symbols[symbol.GetName()] = symbol
-		symbol.SetScope(l)
-	}
-}
-
-func (l *LocalScope) Resolve(name string) Symbol {
-	if v, ok := l.Symbols[name]; ok {
-		return v
-	}
-	if l.EnclosingScope != nil {
-		return l.EnclosingScope.Resolve(name)
-	}
-	return nil
-}
-
-func (l *LocalScope) GetName() string {
-	return "local"
-}
-func (l *LocalScope) ParentScope() Scope {
-	return l.EnclosingScope
-}
-
 // FunctionSymbol 函数符号
 type FunctionSymbol struct {
 	Name           string
-	ID             int32
 	FormalArgs     []Symbol
-	BlockAst       gen.ISlistContext
-	Address        int32
+	Address        int32 // 函数在全局符号表中的地址
 	EnclosingScope Scope
 	BodyScope      *LocalScope
 	Line           int32
 	Code           []*ir.StackInstr
+	CodeAddr       int32 // 函数入口
 }
 
 func (f *FunctionSymbol) Dump() string {
 	var sb strings.Builder
-	var locals int
-	// 计算 locals 数量
-	if f.BodyScope != nil {
-		locals = len(f.BodyScope.Symbols)
-	}
-	fmt.Fprintf(&sb, ".def %s args=%d locals=%d\n", f.Name, len(f.FormalArgs), locals)
+	sb.WriteString(fmt.Sprintf(".def %s args=%d locals=%d\n", f.Name, len(f.FormalArgs), f.LocalNums()))
 	for _, instr := range f.Code {
 		sb.WriteString(instr.Dump())
 	}
@@ -205,7 +56,8 @@ func (f *FunctionSymbol) Define(symbol Symbol) {
 	// 检查是否重复定义
 	for _, arg := range f.FormalArgs {
 		if arg.GetName() == symbol.GetName() {
-			panic(fmt.Sprintf("duplicate formal arg %s in function %s line %d", symbol.GetName(), f.Name, f.Line))
+			panic(fmt.Sprintf("duplicate formal arg %s in function %s line %d",
+				symbol.GetName(), f.Name, f.Line))
 			return
 		}
 	}
@@ -234,11 +86,20 @@ func (f *FunctionSymbol) ParentScope() Scope {
 	return f.EnclosingScope
 }
 
+func (f *FunctionSymbol) LocalNums() int {
+	locals := 0
+	if f.BodyScope != nil {
+		// 过滤 structSymbol
+		locals = int(f.BodyScope.LocalVarAllocator)
+	}
+	return locals
+}
+
 // StructSymbol 结构体符号
 type StructSymbol struct {
 	Fields         []Symbol
 	Name           string
-	Address        int32
+	Address        int32 // 结构体在全局符号表中的地址
 	Line           int32
 	EnclosingScope Scope
 }
@@ -329,11 +190,14 @@ func (v *VariableSymbol) Scope() Scope {
 
 type ConstSymbol struct {
 	Name           string
-	Address        int32
+	Address        int32 // 常量在全局符号表中的地址
 	EnclosingScope Scope
 	Line           int32
 	Kind           ir.ConstKind
-	Fields         []int32 // 字段名常量的地址
+	Value          any
+	// Kind==ConstStruct:structName+存储字段名常量的地址
+	// Kind==ConstFunc:存储args,locals的数量，以及函数体代码地址
+	Fields []int32
 }
 
 func (c *ConstSymbol) GetName() string {
@@ -354,4 +218,34 @@ func (c *ConstSymbol) SetAddress(address int32) {
 
 func (c *ConstSymbol) Scope() Scope {
 	return c.EnclosingScope
+}
+
+func DumpSymbol(s Symbol) string {
+	switch s := s.(type) {
+	case *ConstSymbol:
+		switch s.Kind {
+		case ir.ConstFunc:
+			return fmt.Sprintf("%d:%s\t%s\targs=%d locals=%d addr=%d\n",
+				s.Address, s.Kind, s.Name, s.Fields[1], s.Fields[2], s.Fields[3])
+		case ir.ConstStruct:
+			// 结构体常量
+			var sb strings.Builder
+			sb.WriteString(fmt.Sprintf("%d:%s\t%s\n", s.Address, s.Kind, s.Name))
+			for i, field := range s.Fields {
+				if i == 0 {
+					continue
+				}
+				sb.WriteString(fmt.Sprintf("\tfield%d:\t.const->%d\n", i-1, field))
+			}
+			return sb.String()
+		case ir.ConstString:
+			return fmt.Sprintf("%d:%s\t%q\n", s.Address, s.Kind, s.Value)
+		default:
+			return fmt.Sprintf("%d:%s\t%s\n", s.Address, s.Kind, s.Name)
+		}
+	case *StructSymbol, *FunctionSymbol:
+		return ""
+	default:
+		return fmt.Sprintf("%d:\t%s\n", s.GetAddress(), s.GetName())
+	}
 }

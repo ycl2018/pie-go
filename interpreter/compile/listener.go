@@ -2,6 +2,7 @@ package compile
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
@@ -13,16 +14,19 @@ type InterpreterListener interface {
 	ErrorToken(antlr.Token, string, ...any)
 }
 
+var _ InterpreterListener = (*DefaultInterpreterListener)(nil)
+
 type DefaultInterpreterListener struct {
+	Writer      io.Writer
+	ErrorWriter io.Writer
 }
 
 func (d DefaultInterpreterListener) Infof(s string, a ...any) {
-	fmt.Printf(s+"\n", a...)
-
+	_, _ = fmt.Fprintf(d.Writer, s+"\n", a...)
 }
 
 func (d DefaultInterpreterListener) Errorf(s string, a ...any) {
-	fmt.Printf(s+"\n", a...)
+	_, _ = fmt.Fprintf(d.ErrorWriter, s+"\n", a...)
 }
 
 func (d DefaultInterpreterListener) ErrorToken(token antlr.Token, s string, a ...any) {
@@ -30,5 +34,5 @@ func (d DefaultInterpreterListener) ErrorToken(token antlr.Token, s string, a ..
 	lineStr := fmt.Sprintf("<line %d>: ", token.GetLine())
 	sb.WriteString(lineStr)
 	sb.WriteString(fmt.Sprintf(s, a...))
-	fmt.Println(sb.String())
+	_, _ = fmt.Fprintf(d.ErrorWriter, sb.String()+"\n")
 }

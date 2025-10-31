@@ -23,8 +23,8 @@ type PieVisitor interface {
 	// Visit a parse tree produced by PieParser#structDefinitionStatement.
 	VisitStructDefinitionStatement(ctx *StructDefinitionStatementContext) interface{}
 
-	// Visit a parse tree produced by PieParser#assignementStatement.
-	VisitAssignementStatement(ctx *AssignementStatementContext) interface{}
+	// Visit a parse tree produced by PieParser#assignmentStatement.
+	VisitAssignmentStatement(ctx *AssignmentStatementContext) interface{}
 
 	// Visit a parse tree produced by PieParser#returnStatement.
 	VisitReturnStatement(ctx *ReturnStatementContext) interface{}

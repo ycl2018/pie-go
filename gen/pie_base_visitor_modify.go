@@ -26,7 +26,7 @@ func (v *BasePieVisitor) VisitStructDefinitionStatement(ctx *StructDefinitionSta
 	return v.VisitChildren(ctx)
 }
 
-func (v *BasePieVisitor) VisitAssignementStatement(ctx *AssignementStatementContext) interface{} {
+func (v *BasePieVisitor) VisitAssignmentStatement(ctx *AssignmentStatementContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

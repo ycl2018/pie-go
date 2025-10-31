@@ -1,4 +1,4 @@
-package stack2
+package vm
 
 import (
 	"fmt"
