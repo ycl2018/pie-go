@@ -133,10 +133,10 @@ func (g *GlobalScope) Dump() string {
 		return syms[i].GetAddress() < syms[j].GetAddress()
 	})
 	for _, s := range syms {
-		sb.WriteString(DumpSymbol(s))
+		sb.WriteString(DumpSymbol(s, nil))
 	}
 	// 全局常量池
-	sb.WriteString(fmt.Sprintf(".consts: %d\n", len(g.Consts)))
+	sb.WriteString(fmt.Sprintf("\nConstant Pool:%d\n", len(g.Consts)))
 	// 按地址排序
 	var consts []Symbol
 	for _, s := range g.Consts {
@@ -146,7 +146,7 @@ func (g *GlobalScope) Dump() string {
 		return consts[i].GetAddress() < consts[j].GetAddress()
 	})
 	for _, s := range consts {
-		sb.WriteString(DumpSymbol(s))
+		sb.WriteString(DumpSymbol(s, consts))
 	}
 	return sb.String()
 }

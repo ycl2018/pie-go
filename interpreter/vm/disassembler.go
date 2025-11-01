@@ -78,17 +78,18 @@ func (d *DisAssembler) disAssembleConstPool() {
 		case ConstStruct:
 			// 读取结构体常量
 			var structDef ConstStructDef
-			memberCount := d.GetUInt16(d.ip)
-			d.ip += 2
 			nameIndex := d.GetUInt16(d.ip)
+			d.ip += 2
+			memberCount := d.GetUInt16(d.ip)
 			structDef.Name = d.ConstPool[nameIndex].Value.(string)
 			d.ip += 2
-			for i := 1; i < int(memberCount); i++ {
+			for i := 0; i < int(memberCount); i++ {
 				memberIndex := d.GetUInt16(d.ip)
 				d.ip += 2
 				memberName := d.ConstPool[memberIndex].Value.(string)
 				structDef.MemberNames = append(structDef.MemberNames, memberName)
 			}
+			d.ConstPool = append(d.ConstPool, Const{Kind: ConstStruct, Value: structDef})
 		case ConstFunc:
 			funcNameIndex := d.GetUInt16(d.ip)
 			d.ip += 2
@@ -139,26 +140,26 @@ func (d *DisAssembler) Dump() (string, error) {
 	var sb strings.Builder
 	sb.WriteString("Disassembly:")
 	// 常量池
-	sb.WriteString("\nConstant Pool:")
+	sb.WriteString(fmt.Sprintf("\nConstant Pool:%d", len(d.ConstPool)))
 	for i, constVal := range d.ConstPool {
 		sb.WriteString("\n")
 		switch constVal.Kind {
 		case ConstFloat32:
 			val := constVal.Value.(float32)
-			sb.WriteString(fmt.Sprintf("#%d: float32 %f", i, val))
+			sb.WriteString(fmt.Sprintf("#%04d: float32 %f", i, val))
 		case ConstString:
 			val := constVal.Value.(string)
-			sb.WriteString(fmt.Sprintf("#%d: string \"%s\"", i, val))
+			sb.WriteString(fmt.Sprintf("#%04d: string \"%s\"", i, val))
 		case ConstStruct:
 			val := constVal.Value.(ConstStructDef)
-			sb.WriteString(fmt.Sprintf("#%d: struct %s {", i, val.Name))
+			sb.WriteString(fmt.Sprintf("#%04d: struct %s {", i, val.Name))
 			for _, memberName := range val.MemberNames {
-				sb.WriteString(fmt.Sprintf("\n    %s;", memberName))
+				sb.WriteString(fmt.Sprintf("\n         %s;", memberName))
 			}
-			sb.WriteString("\n}")
+			sb.WriteString("\n       }")
 		case ConstFunc:
 			funcSym := constVal.Value.(FunctionSymbol)
-			sb.WriteString(fmt.Sprintf("#%d: func %s(args:%d, locals:%d) @%d", i, funcSym.Name, funcSym.Args, funcSym.Locals, funcSym.Addr))
+			sb.WriteString(fmt.Sprintf("#%04d: func %s(args:%d, locals:%d) @%d", i, funcSym.Name, funcSym.Args, funcSym.Locals, funcSym.Addr))
 		default:
 			return "", fmt.Errorf("unknown const kind %d in disassemble", constVal.Kind)
 		}
@@ -200,6 +201,9 @@ func (d *DisAssembler) DisAssembleInstruction(i int) (int, string, error) {
 			opStr := strconv.Itoa(int(opRandNum))
 			opRand = append(opRand, opStr)
 		case POLL:
+			if int(opRandNum) >= len(d.ConstPool) {
+				panic(fmt.Sprintf("%d out of range", opRandNum))
+			}
 			switch d.ConstPool[opRandNum].Kind {
 			case ConstFloat32:
 				val := d.ConstPool[opRandNum].Value.(float32)

@@ -148,7 +148,7 @@ var Instructions = []*Instruction{
 	{"gstore", []int32{INT}},
 	{"fstore", []int32{POLL}},
 	{"print", []int32{}},
-	{"struct", []int32{POLL}},
+	{"struct", []int32{INT}},
 	{"null", []int32{}},
 	{"pop", []int32{}},
 	{"halt", []int32{}},

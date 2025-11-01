@@ -59,9 +59,10 @@ func (p *PieCompiler) Dump() string {
 	sb.WriteString("Dump:\n")
 	// 常量池
 	sb.WriteString(p.compileVisitor.GlobalScope.Dump())
+	sb.WriteString("\nCode:\n")
+	sb.WriteString(p.compileVisitor.MainFunc.Dump())
 	for _, f := range p.compileVisitor.AllFuncs {
 		sb.WriteString(f.Dump())
 	}
-	sb.WriteString(p.compileVisitor.MainFunc.Dump())
 	return sb.String()
 }

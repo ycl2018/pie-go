@@ -119,11 +119,12 @@ func (a *Assembler) writeUInt16(v uint16) {
 	a.appendByte(byte(v & 0xFF))
 }
 
-// [tag(1byte)][member_count(2byte)][name_index(2byte)][member1_index(2byte)][member2_index(2byte)]...
+// [tag(1byte)][name_index(2byte)][member_count(2byte)][member1_index(2byte)][member2_index(2byte)]...
 func (a *Assembler) writeStruct(val *ConstSymbol) {
-	a.writeUInt16(uint16(len(val.Fields)))
-	for _, fieldIndex := range val.Fields {
-		a.writeUInt16(uint16(fieldIndex))
+	a.writeUInt16(uint16(val.Fields[0]))       // name_index
+	a.writeUInt16(uint16(len(val.Fields) - 1)) // member_count
+	for i := 0; i < len(val.Fields)-1; i++ {
+		a.writeUInt16(uint16(val.Fields[i+1])) // member_index
 	}
 }
 

@@ -220,26 +220,28 @@ func (c *ConstSymbol) Scope() Scope {
 	return c.EnclosingScope
 }
 
-func DumpSymbol(s Symbol) string {
+func DumpSymbol(s Symbol, consts []Symbol) string {
 	switch s := s.(type) {
 	case *ConstSymbol:
 		switch s.Kind {
 		case ir.ConstFunc:
-			return fmt.Sprintf("#%04d:\t%-11s\t%-11s\targs=%d locals=%d addr=#%d\n",
-				s.Address, s.Kind, s.Name, s.Fields[1], s.Fields[2], s.Fields[3])
+			return fmt.Sprintf("#%04d: func %s(args:%d, locals:%d)\n", s.Address, s.Name, s.Fields[1], s.Fields[2])
 		case ir.ConstStruct:
 			// 结构体常量
 			var sb strings.Builder
-			sb.WriteString(fmt.Sprintf("#%04d:\t%-11s\t%s\n", s.Address, s.Kind, s.Name))
+			sb.WriteString(fmt.Sprintf("#%04d: struct %s {\n", s.Address, s.Name))
 			for i, field := range s.Fields {
 				if i == 0 {
-					continue
+					continue // skip name index
 				}
-				sb.WriteString(fmt.Sprintf("    field%d:\t.const#%04d\n", i-1, field))
+				sb.WriteString(fmt.Sprintf("         %s;\n", consts[field].(*ConstSymbol).Value))
 			}
+			sb.WriteString("       }\n")
 			return sb.String()
 		case ir.ConstString:
-			return fmt.Sprintf("#%04d:\t%-11s\t%q\n", s.Address, s.Kind, s.Value)
+			return fmt.Sprintf("#%04d: string \"%s\"\n", s.Address, consts[s.Address].(*ConstSymbol).Value)
+		case ir.ConstFloat32:
+			return fmt.Sprintf("#%04d: float32 %f\n", s.Address, consts[s.Address].(*ConstSymbol).Value)
 		default:
 			return fmt.Sprintf("#%04d:\t%-11s\t%-11s\n", s.Address, s.Kind, s.Name)
 		}
