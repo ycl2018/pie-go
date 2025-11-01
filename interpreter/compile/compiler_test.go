@@ -136,17 +136,11 @@ print u.addr
 				t.Fatal(err)
 			}
 			t.Log(p.Dump())
-			disAssemble := vm.NewDisAssembler(vm.Instructions)
-			 err = disAssemble.DisAssemble(code)
-			 if err != nil {
-			 	t.Fatal(err)
-			 }
-			 dumped, err := disAssemble.Dump()
-			 if err != nil {
-			 	t.Fatal(err)
-			 }
-			 t.Log(dumped)
-
+			interpreter := vm.NewInterpreter()
+			err = interpreter.Run(code)
+			if err != nil {
+				t.Fatal(err)
+			}
 		})
 	}
 }

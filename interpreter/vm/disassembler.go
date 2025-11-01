@@ -139,8 +139,31 @@ func (d *DisAssembler) GetFloat32(ip int) float32 {
 func (d *DisAssembler) Dump() (string, error) {
 	var sb strings.Builder
 	sb.WriteString("Disassembly:")
+	sb.WriteString(fmt.Sprintf("\n.globals:%d", d.GlobalNums))
 	// 常量池
-	sb.WriteString(fmt.Sprintf("\nConstant Pool:%d", len(d.ConstPool)))
+	sb.WriteString(fmt.Sprintf("\n\nConstant Pool:%d", len(d.ConstPool)))
+	s, err := d.DumpConstPool()
+	if err != nil {
+		return s, err
+	}
+	sb.WriteString(s)
+	// 代码段
+	sb.WriteString("\n\nCode:")
+	var i int = int(d.MainFuncIp)
+	for i < len(d.Code) {
+		sb.WriteString("\n")
+		next, str, err := d.DisAssembleInstruction(i)
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(str)
+		i = next
+	}
+	return sb.String(), nil
+}
+
+func (d *DisAssembler) DumpConstPool() (string, error) {
+	sb := strings.Builder{}
 	for i, constVal := range d.ConstPool {
 		sb.WriteString("\n")
 		switch constVal.Kind {
@@ -163,18 +186,6 @@ func (d *DisAssembler) Dump() (string, error) {
 		default:
 			return "", fmt.Errorf("unknown const kind %d in disassemble", constVal.Kind)
 		}
-	}
-	// 代码段
-	sb.WriteString("\n\nCode:")
-	var i int = int(d.MainFuncIp)
-	for i < len(d.Code) {
-		sb.WriteString("\n")
-		next, str, err := d.DisAssembleInstruction(i)
-		if err != nil {
-			return "", err
-		}
-		sb.WriteString(str)
-		i = next
 	}
 	return sb.String(), nil
 }

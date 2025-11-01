@@ -5,9 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/antlr4-go/antlr/v4"
 	"github.com/ycl2018/pie-go/interpreter/asm"
-	"github.com/ycl2018/pie-go/interpreter/asm/gen"
 )
 
 type Option func(interpreter *Interpreter)
@@ -23,19 +21,13 @@ func WithEnableDump() Option {
 		i.dump = true
 	}
 }
-func WithDisassemble() Option {
-	return func(i *Interpreter) {
-		i.disassemble = true
-	}
-}
 
 type Interpreter struct {
-	disAssembler  *asm.DisAssembler
-	IP            int32  // 指令地址
-	Code          []byte // 代码
-	ConstPool     []any
-	FuncConstPool []*asm.FunctionSymbol
-	MainFunc      *asm.FunctionSymbol // Main函数入口地址
+	disAssembler *DisAssembler
+	IP           int32  // 指令地址
+	Code         []byte // 代码
+	ConstPool    []Const
+	MainFuncAddr int32 // Main函数入口地址
 
 	// 函数调用栈
 	Calls []*StackFrame
@@ -50,7 +42,6 @@ type Interpreter struct {
 
 	// ops
 	enableTrace bool
-	disassemble bool
 	dump        bool
 }
 
@@ -58,47 +49,26 @@ const DefaultOperandStackSize = 100
 
 type StackFrame struct {
 	ReturnAddr int32 // 返回值
-	FuncSymbol *asm.FunctionSymbol
+	FuncSymbol *FunctionSymbol
 	Locals     []any // 参数和本地变量
 }
 
-func NewStackFrame(f *asm.FunctionSymbol, returnAddr int32) *StackFrame {
+func NewStackFrame(f *FunctionSymbol, returnAddr int32) *StackFrame {
 	return &StackFrame{
 		ReturnAddr: returnAddr,
 		FuncSymbol: f,
-		Locals:     make([]any, f.NLocals+f.NArgs),
+		Locals:     make([]any, f.Locals+uint16(f.Args)),
 	}
 }
 
-func NewInterpreter(input antlr.CharStream, ops ...Option) *Interpreter {
+func NewInterpreter(ops ...Option) *Interpreter {
 	// 编译
-	assembler := asm.NewByteCodeAssembler(nil)
-	lexer := gen.NewAssemblerLexer(input)
-	parser := gen.NewAssemblerParser(antlr.NewCommonTokenStream(lexer, 0))
-	parser.AsmGenerator = assembler
-	parser.Program()
-
-	mainFunc := assembler.MainFunc
-
-	if mainFunc == nil {
-		mainFunc = &asm.FunctionSymbol{
-			Name:      "main",
-			IsDefined: true,
-		}
-	}
 	i := &Interpreter{
-		IP:            -1,
-		Code:          assembler.Code,
-		ConstPool:     assembler.ConstPool,
-		FuncConstPool: assembler.FuncConsPool,
-		MainFunc:      mainFunc,
-		Calls:         nil,
-		FP:            -1,
-		Operands:      make([]any, DefaultOperandStackSize),
-		SP:            -1,
-		Globals:       make([]any, assembler.DataSize),
-		DataSize:      assembler.DataSize,
-		disAssembler:  asm.NewDisAssembler(nil, assembler.Code, assembler.ConstPool, assembler.FuncConsPool),
+		IP:           -1,
+		FP:           -1,
+		Operands:     make([]any, DefaultOperandStackSize),
+		SP:           -1,
+		disAssembler: NewDisAssembler(Instructions),
 	}
 	for _, op := range ops {
 		op(i)
@@ -106,20 +76,42 @@ func NewInterpreter(input antlr.CharStream, ops ...Option) *Interpreter {
 	return i
 }
 
-func (i *Interpreter) Run() {
-	sf := NewStackFrame(i.MainFunc, i.IP)
+func (i *Interpreter) Run(code []byte) error {
+	err := i.disAssembler.DisAssemble(code)
+	if err != nil {
+		return err
+	}
+	if i.dump {
+		dump, err := i.disAssembler.Dump()
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(dump))
+	}
+	i.Code = code
+	i.MainFuncAddr = i.disAssembler.MainFuncIp
+	i.DataSize = int32(i.disAssembler.GlobalNums)
+	i.ConstPool = i.disAssembler.ConstPool
+	i.Globals = make([]any, i.disAssembler.GlobalNums)
+	sf := NewStackFrame(&FunctionSymbol{
+		Name:   "main",
+		Args:   0,
+		Locals: 0,
+		Addr:   i.MainFuncAddr,
+	}, i.IP)
 	i.Calls = append(i.Calls, sf)
 	i.FP++
 
-	i.IP = i.MainFunc.Address
+	i.IP = i.MainFuncAddr
+	if i.enableTrace {
+		fmt.Printf("\ntrace:\n")
+	}
 	i.cpu()
 
-	if i.disassemble {
-		i.Disassemble()
-	}
 	if i.dump {
 		i.Dump()
 	}
+	return nil
 }
 
 func (i *Interpreter) PopOpStack() any {
@@ -157,17 +149,18 @@ func (i *Interpreter) cpu() {
 			op1Type, op2Type := reflect.TypeOf(op1), reflect.TypeOf(op2)
 			if op1Type.Kind() == reflect.String || op2Type.Kind() == reflect.String {
 				i.PushOpStack(toString(op1) + toString(op2))
-			} else if op1Type.Kind() == reflect.Int32 && op2Type.Kind() == reflect.Int32 {
-				i.PushOpStack(toInt32(op2) + toInt32(op1))
-			} else {
+			} else if op1Type.Kind() == reflect.Float32 && op2Type.Kind() == reflect.Float32 {
 				i.PushOpStack(toFloat32(op2) + toFloat32(op1))
+			} else {
+				i.PushOpStack(toInt32(op2) + toInt32(op1))
 			}
 		case InstrSub, InstrMul, InstrDiv, InstrLT, InstrEQ, InstrLEQ, InstrNEQ, InstrGEQ, InstrGT:
 			// 弹出两个操作数，相加，push
 			op2, op1 := i.PopOpStack(), i.PopOpStack()
 			t2, t1 := reflect.TypeOf(op2), reflect.TypeOf(op1)
-			if t2.Kind() != t1.Kind() {
-				panic(fmt.Sprintf("type not match:%v %v", t1, t2))
+			if t1.Kind() == reflect.Float32 || t2.Kind() == reflect.Float32 {
+				op1, op2 = toFloat32(op1), toFloat32(op2)
+				t1, t2 = reflect.TypeOf(op1), reflect.TypeOf(op2)
 			}
 			switch instr {
 			case InstrSub:
@@ -224,23 +217,26 @@ func (i *Interpreter) cpu() {
 				} else {
 					i.PushOpStack(toFloat32(op1) > toFloat32(op2))
 				}
+			default:
+				panic("unhandled default case")
 			}
 
 		case InstrCall:
 			// 函数调用
 			funcIndex := i.NextOperand()
-			fs := i.FuncConstPool[funcIndex]
-			funcStack := NewStackFrame(fs, i.IP)
+			fs := i.ConstPool[funcIndex].Value.(FunctionSymbol)
+			funcStack := NewStackFrame(&fs, i.IP)
 			i.FP++
 			i.Calls = append(i.Calls, funcStack)
 			// 拷贝操作数到参数中
 			// move args from operand stack to top frame on call stack
-			for a := fs.NArgs - 1; a >= 0; a-- {
+			for a := int(fs.Args) - 1; a >= 0; a-- {
 				funcStack.Locals[a] = i.PopOpStack()
 			}
-			i.IP = fs.Address
+			i.IP = fs.Addr
 		case InstrReturn:
 			curFs := i.Calls[i.FP]
+			i.Calls = i.Calls[:i.FP]
 			i.FP--
 			i.IP = curFs.ReturnAddr
 		case InstrBR:
@@ -259,9 +255,13 @@ func (i *Interpreter) cpu() {
 		case InstrCConst, InstrIConst:
 			val := i.NextOperand()
 			i.PushOpStack(val)
-		case InstrFConst, InstrSConst:
+		case InstrFConst:
 			poolIndex := i.NextOperand()
-			fConst := i.ConstPool[poolIndex]
+			fConst := i.ConstPool[poolIndex].Value.(float32)
+			i.PushOpStack(fConst)
+		case InstrSConst:
+			poolIndex := i.NextOperand()
+			fConst := i.ConstPool[poolIndex].Value.(string)
 			i.PushOpStack(fConst)
 		case InstrLoad:
 			argIndex := i.NextOperand()
@@ -275,7 +275,8 @@ func (i *Interpreter) cpu() {
 			// 字段加载,字段地址在操作数栈中，字段index为下个操作数
 			s := i.PopOpStack().(*StructSpace)
 			index := i.NextOperand()
-			i.PushOpStack(s.Field(int(index)))
+			fieldName := i.ConstPool[index].Value.(string)
+			i.PushOpStack(s.Field(fieldName))
 		case InstrStore:
 			addr := i.NextOperand()
 			i.Calls[i.FP].Locals[addr] = i.PopOpStack()
@@ -285,12 +286,20 @@ func (i *Interpreter) cpu() {
 		case InstrFStore:
 			s := i.PopOpStack().(*StructSpace)
 			index := i.NextOperand()
-			s.Set(int(index), i.PopOpStack())
+			fieldName := i.ConstPool[index].Value.(string)
+			s.Set(fieldName, i.PopOpStack())
 		case InstrPrint:
-			fmt.Println(i.PopOpStack())
+			val := i.PopOpStack()
+			switch v := val.(type) {
+			case *StructSpace:
+				fmt.Println(v.String())
+			default:
+				fmt.Println(v)
+			}
 		case InstrStruct:
 			// push struct
-			s := NewStructSpace(int(i.NextOperand()))
+			def := i.ConstPool[int(i.NextOperand())].Value.(ConstStructDef)
+			s := NewStructSpace(&def)
 			i.PushOpStack(s)
 		case InstrNull:
 			i.PushOpStack(nil)
@@ -365,15 +374,6 @@ func (i *Interpreter) trace() {
 	fmt.Println()
 }
 
-func (i *Interpreter) Disassemble() {
-	str, err := i.disAssembler.DisAssemble()
-	if err != nil {
-		fmt.Printf("disAssemble err:%v\n", err)
-		return
-	}
-	fmt.Println(str)
-}
-
 func (i *Interpreter) Dump() {
 	if len(i.ConstPool) > 0 {
 		i.dumpConstPool()
@@ -386,14 +386,8 @@ func (i *Interpreter) Dump() {
 
 func (i *Interpreter) dumpConstPool() {
 	fmt.Println("Constant Pool:")
-	for j, a := range append(i.ConstPool, i.FuncConstPool) {
-		switch a.(type) {
-		case string:
-			fmt.Printf("%04d: \"%s\"\n", j, a)
-		default:
-			fmt.Printf("%04d: %s\n", j, a)
-		}
-	}
+	dumped, _ := i.disAssembler.DumpConstPool()
+	fmt.Print(dumped)
 	fmt.Println()
 }
 
@@ -424,31 +418,64 @@ func (i *Interpreter) dumpDataMemory() {
 }
 
 type StructSpace struct {
-	Fields []any
+	Name         string
+	Fields       map[string]any
+	Define       *ConstStructDef
+	AllowDynamic bool
 }
 
 func (s *StructSpace) String() string {
 	var sb strings.Builder
-	sb.WriteString("struct{")
-	for _, field := range s.Fields {
-		if field == nil {
-			sb.WriteString(" null")
-		} else {
-			sb.WriteString(fmt.Sprintf(" %v", field))
+	sb.WriteString(fmt.Sprintf("struct %s { ", s.Name))
+	var first = true
+	for _, name := range s.Define.MemberNames {
+		if !first {
+			sb.WriteString(", ")
+		}
+		fmt.Fprintf(&sb, "%s: %v", name, s.Fields[name])
+		first = false
+	}
+	if s.AllowDynamic && len(s.Fields) > len(s.Define.MemberNames) {
+		// 动态添加？
+	OUTER:
+		for k, v := range s.Fields {
+			for _, n := range s.Define.MemberNames {
+				if n == k {
+					continue OUTER
+				}
+			}
+			if !first {
+				sb.WriteString(", ")
+			}
+			first = false
+			fmt.Fprintf(&sb, "%s: %v\n", k, v)
 		}
 	}
 	sb.WriteString(" }")
 	return sb.String()
 }
 
-func NewStructSpace(fieldsNum int) *StructSpace {
-	return &StructSpace{Fields: make([]any, fieldsNum)}
+func NewStructSpace(structDef *ConstStructDef) *StructSpace {
+	s := &StructSpace{Fields: make(map[string]any, len(structDef.MemberNames))}
+	s.Define = structDef
+	s.Name = structDef.Name
+	return s
 }
 
-func (s *StructSpace) Field(index int) any {
-	return s.Fields[index]
+func (s *StructSpace) Field(name string) any {
+	return s.Fields[name]
 }
 
-func (s *StructSpace) Set(index int, val any) {
-	s.Fields[index] = val
+func (s *StructSpace) Set(fieldName string, val any) {
+	if s.AllowDynamic {
+		s.Fields[fieldName] = val
+	} else {
+		for name := range s.Fields {
+			if name == fieldName {
+				s.Fields[name] = val
+				return
+			}
+		}
+		panic(fmt.Sprintf("field %s not exists in struct:%s", fieldName, s.Name))
+	}
 }
