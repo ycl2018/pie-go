@@ -9,16 +9,14 @@ var _ gen2.PieVisitor = (*PieDefineVisitor)(nil)
 
 type PieDefineVisitor struct {
 	*gen2.BasePieVisitor
-	Interpreter *PieInterpreter
-	CurScope    Scope
-	Scopes      map[antlr.ParserRuleContext]Scope
+	CurScope Scope
+	Scopes   map[antlr.ParserRuleContext]Scope
 }
 
-func NewPieDefineVisitor(interpreter *PieInterpreter) *PieDefineVisitor {
+func NewPieDefineVisitor() *PieDefineVisitor {
 	ret := &PieDefineVisitor{
-		Interpreter: interpreter,
-		CurScope:    &GlobalScope{Symbols: make(map[string]Symbol)},
-		Scopes:      make(map[antlr.ParserRuleContext]Scope),
+		CurScope: &GlobalScope{Symbols: make(map[string]Symbol)},
+		Scopes:   make(map[antlr.ParserRuleContext]Scope),
 	}
 	ret.BasePieVisitor = &gen2.BasePieVisitor{ParseTreeVisitor: &BaseVisitor{realVisitor: ret}}
 	return ret
@@ -96,7 +94,7 @@ func (p *PieDefineVisitor) VisitSlist(ctx *gen2.SlistContext) interface{} {
 	return nil
 }
 
-func (p *PieDefineVisitor) VisitAssignementStatement(ctx *gen2.AssignementStatementContext) interface{} {
+func (p *PieDefineVisitor) VisitAssignmentStatement(ctx *gen2.AssignmentStatementContext) interface{} {
 	// qid '=' expr NL
 	p.SaveScope(ctx, p.CurScope)
 	qidCtx := ctx.Qid()

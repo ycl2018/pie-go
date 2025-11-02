@@ -24,8 +24,8 @@ slist
 
 statement
 	:	structDefinition						#structDefinitionStatement
-	|	qid '=' expr NL							#assignementStatement
-	|	'return' expr NL						#returnStatement
+	|	qid '=' expr NL							#assignmentStatement
+	|	'return' expr? NL						#returnStatement
 	|	'print' expr NL							#printStatement
 	|	'if' expr c=slist ('else' el=slist)?	#ifStatement
 	|	'while' expr slist						#whileStatement
@@ -74,7 +74,8 @@ vardef
 
 multOp	: MUL | DIV ;
 addOp	: ADD | SUB ;
-compOp	: EQ | LT ;
+compOp	: EQ | LT | GT | NEQ | GEQ | LEQ ;
+
 
 // L e x i c a l  R u l e s
 
@@ -90,6 +91,10 @@ MUL		: '*' ;
 DIV		: '/' ;
 EQ		: '==' ;
 LT		: '<' ;
+GT		: '>' ;
+GEQ		: '>=' ;
+LEQ		: '<=' ;
+NEQ		: '!=' ;
 STRUCT	: 'struct' ;
 DOT		: '.' ;
 NEW		: 'new' ;

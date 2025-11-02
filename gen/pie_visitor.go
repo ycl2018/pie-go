@@ -1,4 +1,4 @@
-// Code generated from github.com/ycl2018/pie-go/gen/Pie.g4 by ANTLR 4.13.1. DO NOT EDIT.
+// Code generated from /Users/bytedance/go/src/github.com/ycl2018/pie-go/gen/Pie.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package gen // Pie
 import "github.com/antlr4-go/antlr/v4"
@@ -23,8 +23,8 @@ type PieVisitor interface {
 	// Visit a parse tree produced by PieParser#structDefinitionStatement.
 	VisitStructDefinitionStatement(ctx *StructDefinitionStatementContext) interface{}
 
-	// Visit a parse tree produced by PieParser#assignementStatement.
-	VisitAssignementStatement(ctx *AssignementStatementContext) interface{}
+	// Visit a parse tree produced by PieParser#assignmentStatement.
+	VisitAssignmentStatement(ctx *AssignmentStatementContext) interface{}
 
 	// Visit a parse tree produced by PieParser#returnStatement.
 	VisitReturnStatement(ctx *ReturnStatementContext) interface{}

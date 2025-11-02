@@ -22,10 +22,10 @@ func (p *PieInterpreter) Execute(input antlr.CharStream) {
 	programContext := ps.Program()
 	if ps.GetError() == nil {
 		// 符号&作用域解析
-		defVisitor := NewPieDefineVisitor(p)
+		defVisitor := NewPieDefineVisitor()
 		defVisitor.Visit(programContext)
 		// 执行
-		runVisitor := NewRuntimeVisitor(p, defVisitor.Scopes)
+		runVisitor := NewRuntimeVisitor(p.InterpreterListener, defVisitor.Scopes)
 		runVisitor.Visit(programContext)
 	}
 }

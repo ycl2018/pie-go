@@ -13,20 +13,20 @@ var _ gen2.PieVisitor = (*RuntimeVisitor)(nil)
 
 type RuntimeVisitor struct {
 	gen2.BasePieVisitor
-	Interpreter   *PieInterpreter
-	Scopes        map[antlr.ParserRuleContext]Scope // 作用域树&符号表存储
-	GlobalMemory  *MemorySpace                      // global memory
-	CurMemory     *MemorySpace
-	FunctionStack []*FunctionMemorySpace // call stack
+	InterpreterListener InterpreterListener
+	Scopes              map[antlr.ParserRuleContext]Scope // 作用域树&符号表存储
+	GlobalMemory        *MemorySpace                      // global memory
+	CurMemory           *MemorySpace
+	FunctionStack       []*FunctionMemorySpace // call stack
 }
 
-func NewRuntimeVisitor(interpreter *PieInterpreter, scopes map[antlr.ParserRuleContext]Scope) *RuntimeVisitor {
+func NewRuntimeVisitor(iListener InterpreterListener, scopes map[antlr.ParserRuleContext]Scope) *RuntimeVisitor {
 	globalMem := NewMemorySpace("global")
 	ret := &RuntimeVisitor{
-		Interpreter:  interpreter,
-		Scopes:       scopes,
-		GlobalMemory: globalMem,
-		CurMemory:    globalMem,
+		InterpreterListener: iListener,
+		Scopes:              scopes,
+		GlobalMemory:        globalMem,
+		CurMemory:           globalMem,
 	}
 	ret.BasePieVisitor = gen2.BasePieVisitor{ParseTreeVisitor: BaseVisitor{ret}}
 	return ret
@@ -50,7 +50,7 @@ func (v *RuntimeVisitor) VisitProgram(ctx *gen2.ProgramContext) interface{} {
 	return nil
 }
 
-func (v *RuntimeVisitor) VisitAssignementStatement(ctx *gen2.AssignementStatementContext) interface{} {
+func (v *RuntimeVisitor) VisitAssignmentStatement(ctx *gen2.AssignmentStatementContext) interface{} {
 	// qid '=' expr NL
 	qid := ctx.Qid()
 	expr := ctx.Expr()
@@ -73,12 +73,12 @@ func (v *RuntimeVisitor) VisitAssignementStatement(ctx *gen2.AssignementStatemen
 func (v *RuntimeVisitor) FieldAssign(ctx gen2.IQidContext, value any) {
 	structInstance, err := v.GetStructInstanceWithQID(ctx)
 	if err != nil {
-		v.Interpreter.InterpreterListener.ErrorToken(ctx.GetStart(), "can't assign; %s", err)
+		v.InterpreterListener.ErrorToken(ctx.GetStart(), "can't assign; %s", err)
 		return
 	}
 	filedName := ctx.ID(len(ctx.AllID()) - 1).GetText()
 	if structInstance.StructDef.Resolve(filedName) == nil {
-		v.Interpreter.InterpreterListener.ErrorToken(ctx.GetStart(), "can't assign; no such field %s in struct %s", filedName, structInstance.StructDef.Name)
+		v.InterpreterListener.ErrorToken(ctx.GetStart(), "can't assign; no such field %s in struct %s", filedName, structInstance.StructDef.Name)
 		return
 	}
 	structInstance.Members[filedName] = value
@@ -127,7 +127,7 @@ func (v *RuntimeVisitor) VisitCall(ctx *gen2.CallContext) interface{} {
 	scope := v.Scopes[ctx]
 	fnSymbol := scope.Resolve(fname)
 	if fnSymbol == nil {
-		v.Interpreter.InterpreterListener.ErrorToken(ctx.GetStart(), "function %s not found", fname)
+		v.InterpreterListener.ErrorToken(ctx.GetStart(), "function %s not found", fname)
 		return nil
 	}
 	savedCurMemory := v.CurMemory
@@ -141,7 +141,7 @@ func (v *RuntimeVisitor) VisitCall(ctx *gen2.CallContext) interface{} {
 	}
 	v.CurMemory = &curFnStack.MemorySpace
 	if len(ctx.AllExpr()) != len(funcSymbol.FormalArgs) {
-		v.Interpreter.InterpreterListener.ErrorToken(ctx.GetStart(), "function %s expects %d arguments but got %d", fname, len(funcSymbol.FormalArgs), len(ctx.AllExpr()))
+		v.InterpreterListener.ErrorToken(ctx.GetStart(), "function %s expects %d arguments but got %d", fname, len(funcSymbol.FormalArgs), len(ctx.AllExpr()))
 		return nil
 	}
 	for i, arg := range ctx.AllExpr() {
@@ -176,7 +176,7 @@ func (v *RuntimeVisitor) VisitExpr(ctx *gen2.ExprContext) interface{} {
 		case "<":
 			return v.LessThan(left, right)
 		default:
-			v.Interpreter.InterpreterListener.ErrorToken(ctx.GetStart(), "invalid comp op: %s", ctx.CompOp().GetText())
+			v.InterpreterListener.ErrorToken(ctx.GetStart(), "invalid comp op: %s", ctx.CompOp().GetText())
 		}
 	}
 	panic("not implemented")
@@ -197,7 +197,7 @@ func (v *RuntimeVisitor) VisitAddexpr(ctx *gen2.AddexprContext) interface{} {
 		case "-":
 			accumulator = v.Sub(accumulator, right)
 		default:
-			v.Interpreter.InterpreterListener.ErrorToken(ctx.AddOp(i+1).GetStart(), "invalid add op: %s", op.GetText())
+			v.InterpreterListener.ErrorToken(ctx.AddOp(i+1).GetStart(), "invalid add op: %s", op.GetText())
 		}
 	}
 	return accumulator
@@ -218,7 +218,7 @@ func (v *RuntimeVisitor) VisitMulexpr(ctx *gen2.MulexprContext) interface{} {
 		case "/":
 			accumulator = v.Div(accumulator, right)
 		default:
-			v.Interpreter.InterpreterListener.ErrorToken(ctx.Atom(i+1).GetStart(), "invalid mult op: %s", op.GetText())
+			v.InterpreterListener.ErrorToken(ctx.Atom(i+1).GetStart(), "invalid mult op: %s", op.GetText())
 		}
 	}
 	return accumulator
@@ -272,7 +272,7 @@ func (v *RuntimeVisitor) op(left, right any, op string) interface{} {
 	case rune:
 		return unaryCalculator[rune]{l: left.(rune), r: right.(rune)}.Cal(op)
 	}
-	v.Interpreter.InterpreterListener.Errorf("invalid type for op: %s %s %s", reflect.TypeOf(left), op, reflect.TypeOf(right))
+	v.InterpreterListener.Errorf("invalid type for op: %s %s %s", reflect.TypeOf(left), op, reflect.TypeOf(right))
 	return nil
 }
 
@@ -342,7 +342,7 @@ func (v *RuntimeVisitor) VisitIntAtom(ctx *gen2.IntAtomContext) interface{} {
 	if intStr != "" {
 		intValue, err := strconv.ParseInt(intStr, 10, 64)
 		if err != nil {
-			v.Interpreter.InterpreterListener.ErrorToken(ctx.GetStart(), "parse int error: %s", err)
+			v.InterpreterListener.ErrorToken(ctx.GetStart(), "parse int error: %s", err)
 			return nil
 		}
 		return intValue
@@ -364,7 +364,7 @@ func (v *RuntimeVisitor) VisitFloatAtom(ctx *gen2.FloatAtomContext) interface{} 
 	if intStr != "" {
 		intValue, err := strconv.ParseFloat(intStr, 64)
 		if err != nil {
-			v.Interpreter.InterpreterListener.ErrorToken(ctx.GetStart(), "parse float error: %s", err)
+			v.InterpreterListener.ErrorToken(ctx.GetStart(), "parse float error: %s", err)
 			return nil
 		}
 		return intValue
@@ -415,7 +415,7 @@ func (v *RuntimeVisitor) FiledLoad(ctx *gen2.QidContext) any {
 	}
 	filedName := ctx.ID(len(ctx.AllID()) - 1).GetText()
 	if structInstance.StructDef.Resolve(filedName) == nil {
-		v.Interpreter.InterpreterListener.ErrorToken(ctx.GetStart(), "no such field %s in struct %s", filedName, structInstance.StructDef.Name)
+		v.InterpreterListener.ErrorToken(ctx.GetStart(), "no such field %s in struct %s", filedName, structInstance.StructDef.Name)
 	}
 	return structInstance.Get(filedName)
 }
@@ -426,7 +426,7 @@ func (v *RuntimeVisitor) VariableLoad(ctx gen2.IQidContext) any {
 	if memSpace != nil {
 		return memSpace.Get(variableName)
 	}
-	v.Interpreter.InterpreterListener.ErrorToken(ctx.GetStart(), "no such variable %s", ctx.ID(0).GetSymbol())
+	v.InterpreterListener.ErrorToken(ctx.GetStart(), "no such variable %s", ctx.ID(0).GetSymbol())
 	return nil
 }
 

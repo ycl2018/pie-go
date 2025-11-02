@@ -1,10 +1,3 @@
-# Pie-go
- 
-The go implementation of Pie language interpreter by antlr4.
-
-Go语言版Pie语言解释器，基于antlr4实现。
-
-```go
 package compile
 
 import (
@@ -151,4 +144,3 @@ print u.addr
 		})
 	}
 }
-```
